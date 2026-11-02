@@ -90,6 +90,8 @@ export const reputationEvents = pgTable(
     value: smallint("value").notNull(),
     reason: text("reason"),
     at: ts("at").notNull().defaultNow(),
+    /** The Admin who did it, for `admin_remove`. Null for a Player's own actions. */
+    adminUuid: uuid("admin_uuid"),
   },
   (t) => [index("reputation_events_giver_at_idx").on(t.giverUuid, t.at)],
 );
@@ -121,6 +123,9 @@ export const reports = pgTable(
     reason: text("reason"),
     createdAt: ts("created_at").notNull().defaultNow(),
     resolvedAt: ts("resolved_at"),
+    /** How an Admin resolved it: left the Reputation alone, or removed it. */
+    resolution: text("resolution", { enum: ["dismissed", "removed"] }),
+    resolvedBy: uuid("resolved_by"),
   },
   (t) => [uniqueIndex("reports_reporter_reputation_idx").on(t.reporterUuid, t.reputationId)],
 );
@@ -137,6 +142,8 @@ export const suspensions = pgTable(
     until: ts("until"),
     createdAt: ts("created_at").notNull().defaultNow(),
     liftedAt: ts("lifted_at"),
+    createdBy: uuid("created_by"),
+    liftedBy: uuid("lifted_by"),
   },
   (t) => [index("suspensions_player_idx").on(t.playerUuid)],
 );

@@ -29,10 +29,14 @@ http://localhost:3000/api/dev/link-code?username=Notch
 
 This route only exists when `NODE_ENV` is `development`.
 
+### Admins
+
+Admins are the Players whose UUIDs are listed in `ADMIN_UUIDS` (comma-separated). Signed in as one of them, the account menu has an Admin link to `/admin`: the Report queue, Player moderation (remove any +1/−1, suspend or lift a Suspension) and the Reputation activity log. Everyone else gets a 404 there.
+
 ## Layout
 
 - `src/lib/rules.ts`: the Reputation rules (one +1/−1 per pair, reasons, daily limits). Pure and unit-tested.
-- `src/server/`: database operations (`reputation.ts`, `auth.ts`, `players.ts`). Each takes the `db` as a parameter so tests run against an in-memory Postgres.
+- `src/server/`: database operations (`reputation.ts`, `auth.ts`, `players.ts`, `admin.ts`). Each takes the `db` as a parameter so tests run against an in-memory Postgres.
 - `src/db/`: Drizzle schema and connection. `npm run db:generate` writes a new migration to `drizzle/` after a schema change.
 - `src/app/`: pages, Server Actions and route handlers.
 

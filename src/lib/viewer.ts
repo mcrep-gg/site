@@ -4,6 +4,7 @@ import { connection } from "next/server";
 import { cache } from "react";
 import { db } from "@/db";
 import { sessionPlayer, type SessionPlayer } from "@/server/auth";
+import { isAdmin } from "./admin";
 import { SESSION_COOKIE } from "./session";
 
 /**
@@ -17,4 +18,13 @@ export const getViewer = cache(async (): Promise<SessionPlayer | null> => {
   const token = (await cookies()).get(SESSION_COOKIE)?.value;
   if (!token) return null;
   return sessionPlayer(db, token);
+});
+
+/**
+ * The signed-in Admin for this request, or null. Every Admin page and Server Action checks this itself;
+ * the dashboard layout is not a gate.
+ */
+export const getAdmin = cache(async (): Promise<SessionPlayer | null> => {
+  const viewer = await getViewer();
+  return viewer && isAdmin(viewer.uuid) ? viewer : null;
 });
