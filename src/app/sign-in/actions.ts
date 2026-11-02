@@ -4,7 +4,7 @@ import { cookies } from "next/headers";
 import { db } from "@/db";
 import { endSession, redeemLinkCode } from "@/server/auth";
 import { getPlayer } from "@/server/players";
-import { SESSION_COOKIE } from "@/lib/viewer";
+import { SESSION_COOKIE, sessionCookieOptions } from "@/lib/session";
 
 export type SignInState =
   | { status: "idle" }
@@ -16,13 +16,7 @@ export async function signIn(_prev: SignInState, formData: FormData): Promise<Si
   const result = await redeemLinkCode(db, code);
   if (!result.ok) return { status: "error", error: result.error, code };
 
-  (await cookies()).set(SESSION_COOKIE, result.token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/",
-    expires: result.expiresAt,
-  });
+  (await cookies()).set(SESSION_COOKIE, result.token, sessionCookieOptions());
   const player = await getPlayer(db, result.playerUuid);
   return { status: "success", uuid: result.playerUuid, username: player?.username ?? "" };
 }

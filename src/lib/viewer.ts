@@ -4,8 +4,7 @@ import { connection } from "next/server";
 import { cache } from "react";
 import { db } from "@/db";
 import { sessionPlayer, type SessionPlayer } from "@/server/auth";
-
-export const SESSION_COOKIE = "mcrep_session";
+import { SESSION_COOKIE } from "./session";
 
 /**
  * The signed-in Linked Player for this request, or null.

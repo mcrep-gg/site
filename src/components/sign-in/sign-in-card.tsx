@@ -53,7 +53,7 @@ export function SignInCard() {
             <SkinHead uuid={state.uuid} username={state.username} size={36} />
             <span className="font-mono text-base font-bold">{state.username}</span>
           </div>
-          <p className="leading-relaxed text-ink-2">You&apos;re now a Linked Player. You&apos;ll stay signed in on this device for 30 days.</p>
+          <p className="leading-relaxed text-ink-2">You&apos;re now a Linked Player. You&apos;ll stay signed in on this device unless you don&apos;t visit for 90 days.</p>
           <div className="mt-1 flex w-full flex-col gap-2.5">
             <Link
               href={`/player/${state.username}`}
@@ -129,7 +129,7 @@ export function SignInCard() {
         <div className="flex flex-col gap-2 pt-1 text-[13px] leading-normal text-muted">
           <span className="flex gap-2">
             <LuClock aria-hidden className="mt-0.5 size-[15px] shrink-0 text-pos" />
-            You&apos;ll stay signed in on this device for 30 days.
+            You&apos;ll stay signed in on this device unless you don&apos;t visit for 90 days.
           </span>
           <span className="flex gap-2">
             <LuShieldCheck aria-hidden className="mt-0.5 size-[15px] shrink-0 text-pos" />
