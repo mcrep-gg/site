@@ -2,9 +2,12 @@ import { createHash, randomBytes, randomInt } from "node:crypto";
 import { and, eq, gt, isNull } from "drizzle-orm";
 import type { Db } from "@/db/client";
 import { linkCodes, players, sessions } from "@/db/schema";
+import { rankOf, type Rank } from "@/lib/ranks";
+import { SESSION_TTL_MS } from "@/lib/session";
 
 export const LINK_CODE_TTL_MS = 5 * 60 * 1000;
-export const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+// A session used again within a day of its last renewal isn't written to, so page views don't all hit the database.
+const SESSION_RENEW_AFTER_MS = 24 * 60 * 60 * 1000;
 
 // No 0/O, 1/I/L: codes are read off a Minecraft chat line and typed by hand.
 const CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
@@ -40,7 +43,7 @@ export type RedeemResult =
   | { ok: false; error: "invalid" | "expired" | "used" };
 
 /**
- * Redeems a Link Code and opens a 30-day session. Every other session for the Player is signed out,
+ * Redeems a Link Code and opens a session that lasts while the Player keeps visiting. Every other session for the Player is signed out,
  * because whoever holds a fresh code is the account's current owner.
  */
 export async function redeemLinkCode(db: Db, rawCode: string, now = new Date()): Promise<RedeemResult> {
@@ -73,15 +76,24 @@ export async function redeemLinkCode(db: Db, rawCode: string, now = new Date()):
   });
 }
 
-export type SessionPlayer = { uuid: string; username: string; linkedAt: Date };
+export type SessionPlayer = { uuid: string; username: string; linkedAt: Date; rank: Rank | null };
 
+/** The Player a session token belongs to, or null. Using a session pushes its expiry forward. */
 export async function sessionPlayer(db: Db, token: string, now = new Date()): Promise<SessionPlayer | null> {
+  const tokenHash = sha256(token);
   const [row] = await db
-    .select({ uuid: players.uuid, username: players.username, linkedAt: players.linkedAt })
+    .select({ uuid: players.uuid, username: players.username, linkedAt: players.linkedAt, rank: players.rank, expiresAt: sessions.expiresAt })
     .from(sessions)
     .innerJoin(players, eq(players.uuid, sessions.playerUuid))
-    .where(and(eq(sessions.tokenHash, sha256(token)), gt(sessions.expiresAt, now)));
-  return row?.linkedAt ? { uuid: row.uuid, username: row.username, linkedAt: row.linkedAt } : null;
+    .where(and(eq(sessions.tokenHash, tokenHash), gt(sessions.expiresAt, now)));
+  if (!row?.linkedAt) return null;
+  if (row.expiresAt.getTime() - now.getTime() < SESSION_TTL_MS - SESSION_RENEW_AFTER_MS) {
+    await db
+      .update(sessions)
+      .set({ expiresAt: new Date(now.getTime() + SESSION_TTL_MS) })
+      .where(eq(sessions.tokenHash, tokenHash));
+  }
+  return { uuid: row.uuid, username: row.username, linkedAt: row.linkedAt, rank: rankOf(row.uuid, row.rank) };
 }
 
 export async function endSession(db: Db, token: string): Promise<void> {

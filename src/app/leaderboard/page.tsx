@@ -17,7 +17,7 @@ const LIST_LENGTH = 10;
 
 export default function LeaderboardPage() {
   return (
-    <main className="mx-auto box-border flex w-full max-w-[1120px] flex-col gap-6 px-4 pt-6 pb-12 sm:px-6 sm:pt-12 sm:pb-20">
+    <main className="stagger mx-auto box-border flex w-full max-w-[1120px] flex-col gap-6 px-4 pt-6 pb-12 sm:px-6 sm:pt-12 sm:pb-20">
       <div className="flex flex-col gap-2.5">
         <h1 className="m-0 font-pixel text-[32px] leading-[1.05] font-bold sm:text-[44px]">Leaderboard</h1>
         <p className="m-0 max-w-[640px] text-base leading-[1.55] text-ink-2">

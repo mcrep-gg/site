@@ -3,6 +3,7 @@ import {
   check,
   index,
   pgTable,
+  primaryKey,
   serial,
   smallint,
   text,
@@ -10,6 +11,9 @@ import {
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
+// Relative, not "@/": drizzle-kit loads this file without the tsconfig paths.
+import { REACTION_KEYS, type Reaction } from "../lib/rules";
+import { STORED_RANKS } from "../lib/ranks";
 
 const ts = (name: string) => timestamp(name, { withTimezone: true, mode: "date" });
 
@@ -23,8 +27,17 @@ export const players = pgTable(
     linkedAt: ts("linked_at"),
     /** When `username` was last confirmed with Mojang. */
     refreshedAt: ts("refreshed_at").notNull().defaultNow(),
+    /** Staff or Pro, given by an Admin. Admin itself comes from ADMIN_UUIDS, never this column. */
+    rank: text("rank", { enum: STORED_RANKS }),
+    /** When an Admin last gave or took away the rank, and who. */
+    rankSetAt: ts("rank_set_at"),
+    rankSetBy: uuid("rank_set_by"),
   },
-  (t) => [index("players_username_lower_idx").on(sql`lower(${t.username})`)],
+  (t) => [
+    index("players_username_lower_idx").on(sql`lower(${t.username})`),
+    index("players_rank_idx").on(t.rank),
+    check("players_rank_check", sql`${t.rank} in ('staff', 'pro')`),
+  ],
 );
 
 /** Single-use codes the Link Server issues. Stored hashed. */
@@ -90,6 +103,8 @@ export const reputationEvents = pgTable(
     value: smallint("value").notNull(),
     reason: text("reason"),
     at: ts("at").notNull().defaultNow(),
+    /** The Admin who did it, for `admin_remove`. Null for a Player's own actions. */
+    adminUuid: uuid("admin_uuid"),
   },
   (t) => [index("reputation_events_giver_at_idx").on(t.giverUuid, t.at)],
 );
@@ -103,6 +118,28 @@ export const replies = pgTable("replies", {
   createdAt: ts("created_at").notNull().defaultNow(),
   updatedAt: ts("updated_at").notNull().defaultNow(),
 });
+
+/**
+ * Emoji reactions on a +1 or -1. Each Player can add each emoji once per entry.
+ * They go with the Reputation when it is changed or removed, like a Reply.
+ */
+export const reactions = pgTable(
+  "reactions",
+  {
+    reputationId: uuid("reputation_id")
+      .notNull()
+      .references(() => reputation.id, { onDelete: "cascade" }),
+    playerUuid: uuid("player_uuid")
+      .notNull()
+      .references(() => players.uuid, { onDelete: "cascade" }),
+    emoji: text("emoji").$type<Reaction>().notNull(),
+    createdAt: ts("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.reputationId, t.playerUuid, t.emoji] }),
+    check("reactions_emoji_check", sql.raw(`emoji in (${REACTION_KEYS.map((k) => `'${k}'`).join(", ")})`)),
+  ],
+);
 
 /** A request for an Admin to review a +1 or -1. Keeps a copy so it survives the Reputation changing. */
 export const reports = pgTable(
@@ -121,6 +158,9 @@ export const reports = pgTable(
     reason: text("reason"),
     createdAt: ts("created_at").notNull().defaultNow(),
     resolvedAt: ts("resolved_at"),
+    /** How an Admin resolved it: left the Reputation alone, or removed it. */
+    resolution: text("resolution", { enum: ["dismissed", "removed"] }),
+    resolvedBy: uuid("resolved_by"),
   },
   (t) => [uniqueIndex("reports_reporter_reputation_idx").on(t.reporterUuid, t.reputationId)],
 );
@@ -137,6 +177,8 @@ export const suspensions = pgTable(
     until: ts("until"),
     createdAt: ts("created_at").notNull().defaultNow(),
     liftedAt: ts("lifted_at"),
+    createdBy: uuid("created_by"),
+    liftedBy: uuid("lifted_by"),
   },
   (t) => [index("suspensions_player_idx").on(t.playerUuid)],
 );

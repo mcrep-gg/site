@@ -29,10 +29,18 @@ http://localhost:3000/api/dev/link-code?username=Notch
 
 This route only exists when `NODE_ENV` is `development`.
 
+### Ranks: Admin, Staff and Pro
+
+- **Admin**: the Players whose UUIDs are listed in `ADMIN_UUIDS` (comma-separated). It can't be given or taken away from the site.
+- **Staff**: given by an Admin. Can use `/admin` like an Admin (the Report queue, Player moderation: remove any +1/−1, suspend or lift a Suspension, and the Reputation activity log), but can't give out ranks.
+- **Pro**: given by an Admin, for donators. Only a badge for now.
+
+Each rank shows a badge on the Player's profile, next to their name on Reputation they gave, on the leaderboard and on their Settings page. Admins and Staff get an Admin link in the account menu; everyone else gets a 404 at `/admin`. Admins give and take away Staff and Pro from the Rank panel on a Player's admin page, and `/admin/ranks` lists everyone with a rank. Admins and Staff can't be suspended.
+
 ## Layout
 
 - `src/lib/rules.ts`: the Reputation rules (one +1/−1 per pair, reasons, daily limits). Pure and unit-tested.
-- `src/server/`: database operations (`reputation.ts`, `auth.ts`, `players.ts`). Each takes the `db` as a parameter so tests run against an in-memory Postgres.
+- `src/server/`: database operations (`reputation.ts`, `auth.ts`, `players.ts`, `admin.ts`, `ranks.ts`). Each takes the `db` as a parameter so tests run against an in-memory Postgres.
 - `src/db/`: Drizzle schema and connection. `npm run db:generate` writes a new migration to `drizzle/` after a schema change.
 - `src/app/`: pages, Server Actions and route handlers.
 

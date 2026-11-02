@@ -45,13 +45,13 @@ export function HomeSearchForm({ query = "", warn = false }: { query?: string; w
 export function TryPlayers({ players }: { players: { uuid: string; username: string }[] }) {
   if (players.length === 0) return null;
   return (
-    <div className="flex flex-wrap items-center gap-2 text-sm text-muted">
+    <div className="stagger flex flex-wrap items-center gap-2 text-sm text-muted [--stagger-base:200ms] [--stagger-step:50ms]">
       <span>Try:</span>
       {players.map((p) => (
         <Link
           key={p.uuid}
           href={`/player/${encodeURIComponent(p.username)}`}
-          className="inline-flex h-11 items-center gap-2 rounded border-2 border-line-strong bg-surface pr-3 pl-2 font-mono text-[13px] font-medium no-underline hover:border-accent-line"
+          className="press inline-flex h-11 items-center gap-2 rounded border-2 border-line-strong bg-surface pr-3 pl-2 font-mono text-[13px] font-medium no-underline hover:border-accent-line"
         >
           <SkinHead uuid={p.uuid} username={p.username} size={22} />
           <span className="text-ink">{p.username}</span>
@@ -64,7 +64,7 @@ export function TryPlayers({ players }: { players: { uuid: string; username: str
 /** The accent-bordered panel under the search box ("No Player with that name"). */
 export function SearchNotice({ icon, title, children }: { icon: ReactNode; title: string; children: ReactNode }) {
   return (
-    <div role="status" className="flex items-start gap-4 rounded-md border-2 border-accent-line bg-surface p-5">
+    <div role="status" className="flex animate-enter items-start gap-4 rounded-md border-2 border-accent-line bg-surface p-5">
       <div className="flex size-12 shrink-0 items-center justify-center rounded bg-accent-bg text-accent">{icon}</div>
       <div className="flex min-w-0 flex-col gap-2">
         <h2 className="m-0 text-xl font-bold">{title}</h2>

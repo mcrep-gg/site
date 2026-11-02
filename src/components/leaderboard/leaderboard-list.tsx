@@ -1,7 +1,9 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { LuArrowDown, LuArrowUp } from "react-icons/lu";
+import { RankBadge } from "@/components/rank-badge";
 import { SkinHead } from "@/components/skin-head";
+import { RANK_LABELS } from "@/lib/ranks";
 import { formatNet } from "@/lib/rules";
 import type { LeaderboardRow } from "@/server/reputation";
 
@@ -50,7 +52,7 @@ export function LeaderboardList({ kind, rows, id }: { kind: ListKind; rows: Lead
       {rows.length === 0 ? (
         <p className="m-0 px-5 py-6 text-sm leading-[1.55] text-muted">{LISTS[kind].empty}</p>
       ) : (
-        <ol className="m-0 list-none p-0">
+        <ol className="stagger m-0 list-none p-0 [--stagger-base:120ms] [--stagger-step:35ms]">
           {rows.map((r, i) => {
             const f = formatNet(r.positive, r.negative);
             const podium = kind === "highest" && i < 3;
@@ -58,7 +60,7 @@ export function LeaderboardList({ kind, rows, id }: { kind: ListKind; rows: Lead
               <li key={r.uuid} className={i === 0 ? "" : "border-t-2 border-line-soft"}>
                 <Link
                   href={`/player/${encodeURIComponent(r.username)}`}
-                  aria-label={`Rank ${i + 1}, ${r.username}, Net Reputation ${f.net}, ${r.positive} positive, ${r.negative} negative`}
+                  aria-label={`Rank ${i + 1}, ${r.username}${r.rank ? ` (${RANK_LABELS[r.rank]})` : ""}, Net Reputation ${f.net}, ${r.positive} positive, ${r.negative} negative`}
                   className="flex min-h-14 items-center gap-3 px-3 py-2 no-underline hover:bg-surface-3 sm:px-5"
                 >
                   <span
@@ -70,7 +72,10 @@ export function LeaderboardList({ kind, rows, id }: { kind: ListKind; rows: Lead
                     {String(i + 1).padStart(2, "0")}
                   </span>
                   <SkinHead uuid={r.uuid} username={r.username} size={32} />
-                  <span className="min-w-0 flex-1 truncate font-mono text-[15px] font-semibold text-ink">{r.username}</span>
+                  <span className="flex min-w-0 flex-1 items-center gap-2">
+                    <span className="truncate font-mono text-[15px] font-semibold text-ink">{r.username}</span>
+                    <RankBadge rank={r.rank} size="sm" />
+                  </span>
                   <span className="flex items-baseline gap-1.5 whitespace-nowrap">
                     <strong className={`font-mono text-[17px] font-bold ${netColor[f.sign]}`}>{f.net}</strong>
                     <span className="font-mono text-[13px] font-medium text-muted">{f.counts}</span>

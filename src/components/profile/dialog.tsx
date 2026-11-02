@@ -33,7 +33,7 @@ export function Dialog({ labelledBy, onClose, children }: { labelledBy: string; 
       onClick={(e) => {
         if (e.target === e.currentTarget && downOnBackdrop.current) onClose();
       }}
-      className="m-auto max-h-[calc(100dvh-48px)] w-[calc(100%-48px)] max-w-[480px] overflow-y-auto rounded-md border-2 border-line-strong bg-surface p-0 text-ink shadow-[0_24px_64px_rgba(0,0,0,0.5)] backdrop:bg-backdrop/80 max-sm:mb-0 max-sm:max-h-[92dvh] max-sm:w-full max-sm:max-w-none max-sm:rounded-b-none max-sm:border-b-0"
+      className="m-auto animate-dialog-in max-h-[calc(100dvh-48px)] w-[calc(100%-48px)] max-w-[480px] overflow-y-auto rounded-md border-2 border-line-strong bg-surface p-0 text-ink shadow-[0_24px_64px_rgba(0,0,0,0.5)] backdrop:bg-backdrop/80 max-sm:mb-0 max-sm:max-h-[92dvh] max-sm:w-full max-sm:max-w-none max-sm:animate-sheet-in max-sm:rounded-b-none max-sm:border-b-0 backdrop:animate-fade-in"
     >
       <div aria-hidden className="flex justify-center pt-2.5 sm:hidden">
         <span className="h-1 w-10 rounded-sm bg-field-line" />
@@ -82,16 +82,16 @@ export function DialogFooter({ children }: { children: ReactNode }) {
 }
 
 export const buttonSecondary =
-  "flex h-12 cursor-pointer items-center justify-center gap-2 rounded border-2 border-line-strong bg-transparent px-[18px] text-[15px] font-semibold text-ink disabled:cursor-not-allowed disabled:opacity-60";
+  "press flex h-12 cursor-pointer items-center justify-center gap-2 rounded border-2 border-line-strong bg-transparent px-[18px] text-[15px] font-semibold text-ink disabled:cursor-not-allowed disabled:opacity-60";
 
 export const buttonPrimary =
-  "shadow-block flex h-12 cursor-pointer items-center justify-center gap-2 rounded border-0 bg-accent px-[22px] text-[15px] font-bold text-accent-ink no-underline hover:bg-accent-hover hover:text-accent-ink disabled:cursor-not-allowed disabled:bg-line-strong disabled:text-faint disabled:shadow-none";
+  "press shadow-block flex h-12 cursor-pointer items-center justify-center gap-2 rounded border-0 bg-accent px-[22px] text-[15px] font-bold text-accent-ink no-underline hover:bg-accent-hover hover:text-accent-ink disabled:cursor-not-allowed disabled:bg-line-strong disabled:text-faint disabled:shadow-none";
 
 /** A Server Action's error, announced to screen readers. */
 export function ErrorNote({ message }: { message: string | null }) {
   if (!message) return null;
   return (
-    <p role="alert" className="m-0 flex items-start gap-2.5 rounded border-2 border-neg-line bg-neg-bg px-3.5 py-3 text-sm leading-normal text-[#ffd9d9]">
+    <p role="alert" className="m-0 flex animate-enter items-start gap-2.5 rounded border-2 border-neg-line bg-neg-bg px-3.5 py-3 text-sm leading-normal text-[#ffd9d9]">
       <LuCircleAlert aria-hidden className="mt-0.5 size-4 shrink-0 text-neg" />
       {message}
     </p>

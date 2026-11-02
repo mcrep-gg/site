@@ -1,30 +1,45 @@
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
+import Link from "next/link";
 import { Suspense, type ReactNode } from "react";
-import { LuCloudOff, LuDiff, LuLogIn, LuSearch, LuSearchX, LuShieldCheck } from "react-icons/lu";
+import { LuArrowRight, LuCloudOff, LuDiff, LuLogIn, LuSearch, LuSearchX, LuShieldCheck } from "react-icons/lu";
+import { newestFeed } from "@/components/home/feed";
+import { NewestFeed, NewestFeedSkeleton } from "@/components/home/newest-feed";
 import { HomeSearchForm, SearchNotice, TryPlayers } from "@/components/home/search";
-import { NetReputation } from "@/components/reputation";
 import { db } from "@/db";
+import { LINK_SERVER_ADDRESS } from "@/lib/config";
+import { getViewer } from "@/lib/viewer";
 import { findPlayerByName, type Player } from "@/server/players";
 import { leaderboard } from "@/server/reputation";
 
 export default function Home({ searchParams }: PageProps<"/">) {
   return (
-    <main className="mx-auto flex w-full max-w-[920px] flex-1 flex-col gap-12 px-4 pt-8 pb-12 sm:gap-[72px] sm:px-6 sm:pt-[72px] sm:pb-20">
+    <main className="stagger mx-auto flex w-full max-w-[920px] flex-1 flex-col gap-14 px-4 pt-8 pb-12 sm:gap-[88px] sm:px-6 sm:pt-[72px] sm:pb-20">
       <section aria-labelledby="hero-title" className="flex flex-col gap-5">
         <span className="inline-flex items-center gap-2 self-start rounded border-2 border-line-strong bg-surface px-2.5 py-1.5 text-[13px] font-semibold text-ink-2">
           <LuShieldCheck aria-hidden className="size-3.5 text-pos" />
-          Player reputation for Minecraft Java Edition
+          Minecraft Java Edition
         </span>
-        <h1 id="hero-title" className="m-0 font-pixel text-[38px] leading-[1.05] font-bold sm:text-6xl">
-          Check a Player before you trade.
+        <h1 id="hero-title" className="m-0 max-w-[760px] font-pixel text-[40px] leading-[1.05] font-bold sm:text-[68px]">
+          Know who you&apos;re trading with.
         </h1>
-        <p className="m-0 max-w-[640px] text-base leading-[1.55] text-ink-2 sm:text-[19px]">
-          Players give each other +1 or −1 Reputation after trades and games. Look someone up first, so you know who you are dealing with
-          before you hand over your loot.
+        <p className="m-0 max-w-[600px] text-base leading-[1.55] text-ink-2 sm:text-[19px]">
+          Search any username to see the +1s and −1s other Players left after trades and games, and why.
         </p>
         <Suspense fallback={<HomeSearchForm />}>
           <SearchArea searchParams={searchParams} />
+        </Suspense>
+      </section>
+
+      <section aria-labelledby="newest-title" className="flex flex-col gap-5">
+        <div className="flex flex-wrap items-center gap-3">
+          <h2 id="newest-title" className="m-0 font-pixel text-[28px] font-bold">
+            Newest Reputation given
+          </h2>
+          <LiveBadge />
+        </div>
+        <Suspense fallback={<NewestFeedSkeleton />}>
+          <NewestArea />
         </Suspense>
       </section>
 
@@ -32,7 +47,7 @@ export default function Home({ searchParams }: PageProps<"/">) {
         <h2 id="how-title" className="m-0 font-pixel text-[28px] font-bold">
           How it works
         </h2>
-        <div className="flex flex-wrap gap-4">
+        <ol className="stagger m-0 flex list-none flex-wrap gap-4 p-0 [--stagger-base:180ms]">
           <Step icon={<LuSearch aria-hidden className="size-5" />} title="Look up a Player">
             Search any Java Edition username. Every Player has a profile here, even if they have never visited.
           </Step>
@@ -42,29 +57,12 @@ export default function Home({ searchParams }: PageProps<"/">) {
           <Step icon={<LuLogIn aria-hidden className="size-5" />} title="Give your own">
             Sign in with a Link Code from our server. No password. Then give Reputation to Players you traded or played with.
           </Step>
-        </div>
+        </ol>
       </section>
 
-      <section aria-labelledby="net-title" className="flex flex-col gap-4">
-        <h2 id="net-title" className="m-0 font-pixel text-[28px] font-bold">
-          Reading Net Reputation
-        </h2>
-        <p className="m-0 max-w-[680px] leading-[1.55] text-ink-2">
-          Net Reputation is positive Reputation minus negative Reputation. Each Player can give another Player only one +1 or −1, so nobody
-          can pile on.
-        </p>
-        <div className="flex flex-wrap gap-3">
-          <NetExample positive={15} negative={3}>
-            15 positive, 3 negative
-          </NetExample>
-          <NetExample positive={2} negative={6}>
-            2 positive, 6 negative
-          </NetExample>
-          <NetExample positive={0} negative={0}>
-            No Reputation yet. Totally normal.
-          </NetExample>
-        </div>
-      </section>
+      <Suspense fallback={null}>
+        <SignUp />
+      </Suspense>
     </main>
   );
 }
@@ -120,25 +118,64 @@ async function SearchArea({ searchParams }: Pick<PageProps<"/">, "searchParams">
   );
 }
 
-function Query({ children }: { children: string }) {
-  return <strong className="font-mono text-ink [overflow-wrap:anywhere]">{children}</strong>;
+async function NewestArea() {
+  // The feed reads the clock and the database: request time only.
+  await connection();
+  return <NewestFeed initial={await newestFeed()} />;
+}
+
+/** A pulsing dot: the feed below updates on its own. */
+function LiveBadge() {
+  return (
+    <span className="inline-flex h-7 items-center gap-2 rounded border-2 border-pos-line bg-pos-bg px-2.5 text-xs font-bold tracking-[0.08em] text-pos uppercase">
+      <span aria-hidden className="relative flex size-2">
+        <span className="absolute inline-flex size-full rounded-full bg-pos opacity-75 motion-safe:animate-ping" />
+        <span className="relative inline-flex size-2 rounded-full bg-pos" />
+      </span>
+      Live
+      <span className="sr-only">: updates on its own</span>
+    </span>
+  );
+}
+
+/** The closing call to action. Hidden from Players who are already signed in. */
+async function SignUp() {
+  if (await getViewer()) return null;
+  return (
+    <section
+      aria-labelledby="signup-title"
+      className="flex flex-wrap items-center gap-6 rounded-md border-2 border-accent-line bg-accent-deep p-6 sm:p-9"
+    >
+      <div className="flex min-w-0 flex-[1_1_380px] flex-col gap-3">
+        <h2 id="signup-title" className="m-0 font-pixel text-[28px] leading-[1.1] font-bold sm:text-4xl">
+          Sign up now
+        </h2>
+        <p className="m-0 max-w-[520px] leading-[1.55] text-ink-2">
+          Your Minecraft account is your mcrep.gg account. Join <span className="font-mono font-semibold text-ink">{LINK_SERVER_ADDRESS}</span>,
+          type <span className="font-mono font-semibold text-ink">/link</span> and enter the code. No password, no email.
+        </p>
+      </div>
+      <Link
+        href="/sign-in"
+        className="press shadow-block inline-flex h-14 flex-none items-center gap-2 rounded bg-accent px-7 text-base font-bold text-accent-ink no-underline hover:bg-accent-hover hover:text-accent-ink"
+      >
+        Sign up
+        <LuArrowRight aria-hidden className="size-[18px]" />
+      </Link>
+    </section>
+  );
 }
 
 function Step({ icon, title, children }: { icon: ReactNode; title: string; children: ReactNode }) {
   return (
-    <div className="flex flex-[1_1_240px] flex-col gap-2.5 rounded-md border-2 border-line bg-surface p-5">
+    <li className="flex flex-[1_1_240px] flex-col gap-2.5 rounded-md border-2 border-line bg-surface p-5">
       <div className="flex size-10 items-center justify-center rounded bg-accent-bg text-accent">{icon}</div>
       <h3 className="m-0 text-base font-bold">{title}</h3>
       <p className="m-0 text-sm leading-[1.55] text-muted">{children}</p>
-    </div>
+    </li>
   );
 }
 
-function NetExample({ positive, negative, children }: { positive: number; negative: number; children: ReactNode }) {
-  return (
-    <div className="flex flex-[1_1_200px] flex-col gap-2 rounded-md border-2 border-line bg-surface px-5 py-[18px]">
-      <NetReputation positive={positive} negative={negative} />
-      <span className="text-sm text-muted">{children}</span>
-    </div>
-  );
+function Query({ children }: { children: string }) {
+  return <strong className="font-mono text-ink [overflow-wrap:anywhere]">{children}</strong>;
 }

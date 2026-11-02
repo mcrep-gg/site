@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { LuBan, LuClock, LuCopy, LuCheck, LuPencil, LuTrash2 } from "react-icons/lu";
+import { LuBan, LuClock, LuPencil, LuTrash2 } from "react-icons/lu";
 import { ValueChip } from "@/components/reputation";
 import type { Value } from "@/lib/rules";
 import { GiveDialog, RemoveDialog } from "./give-dialog";
@@ -21,7 +21,7 @@ export function GivePanel({ ctx, title }: { ctx: GiveContext; title: string }) {
   return (
     <>
       {existing ? (
-        <div className="flex flex-col gap-3">
+        <div key="given" className="flex animate-fade-in flex-col gap-3">
           <h2 className="m-0 text-base font-bold [overflow-wrap:anywhere]">Reputation you gave {ctx.target.username}</h2>
           <div className="flex items-start gap-2.5">
             <ValueChip value={existing.value} />
@@ -57,7 +57,7 @@ export function GivePanel({ ctx, title }: { ctx: GiveContext; title: string }) {
           </span>
         </div>
       ) : (
-        <div className="flex flex-col gap-3">
+        <div key="give" className="flex animate-fade-in flex-col gap-3">
           <h2 className="m-0 text-base font-bold [overflow-wrap:anywhere]">{title}</h2>
           <div className="flex gap-2.5">
             <button
@@ -80,7 +80,7 @@ export function GivePanel({ ctx, title }: { ctx: GiveContext; title: string }) {
           {ctx.suspension ? (
             <span className="flex items-center gap-1.5 text-[13px] text-neg">
               <LuBan aria-hidden className="size-3.5" />
-              An Admin suspended you from giving Reputation
+              Staff suspended you from giving Reputation
             </span>
           ) : (
             <span className="flex items-center gap-1.5 text-[13px] text-muted">
@@ -94,36 +94,5 @@ export function GivePanel({ ctx, title }: { ctx: GiveContext; title: string }) {
       {open?.kind === "give" && <GiveDialog ctx={ctx} initialChoice={open.choice} onClose={close} />}
       {open?.kind === "remove" && <RemoveDialog ctx={ctx} onClose={close} />}
     </>
-  );
-}
-
-/** The own-profile link box with a Copy button. */
-export function CopyProfileLink({ username }: { username: string }) {
-  const [copied, setCopied] = useState(false);
-  const path = `/player/${username}`;
-  return (
-    <div className="flex items-center gap-2 rounded border-2 border-line-strong bg-page py-1 pr-1 pl-3">
-      <span className="min-w-0 flex-1 truncate font-mono text-[13px] font-medium text-ink-2">mcrep.gg{path}</span>
-      <button
-        type="button"
-        aria-label={copied ? "Profile link copied" : "Copy profile link"}
-        onClick={async () => {
-          try {
-            await navigator.clipboard.writeText(`${window.location.origin}${path}`);
-            setCopied(true);
-            setTimeout(() => setCopied(false), 2000);
-          } catch {
-            setCopied(false);
-          }
-        }}
-        className="flex h-9 cursor-pointer items-center gap-1.5 rounded-[3px] border-0 bg-surface-3 px-2.5 text-[13px] font-semibold text-ink"
-      >
-        {copied ? <LuCheck aria-hidden className="size-3.5 text-pos" /> : <LuCopy aria-hidden className="size-3.5" />}
-        {copied ? "Copied" : "Copy"}
-      </button>
-      <span aria-live="polite" className="sr-only">
-        {copied ? "Profile link copied" : ""}
-      </span>
-    </div>
   );
 }

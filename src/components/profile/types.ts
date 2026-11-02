@@ -1,4 +1,5 @@
-import type { Value } from "@/lib/rules";
+import type { Rank } from "@/lib/ranks";
+import type { Reaction, Value } from "@/lib/rules";
 
 /** One +1/−1 a Player received, shaped for the client: dates already formatted on the server. */
 export type EntryView = {
@@ -6,12 +7,26 @@ export type EntryView = {
   value: Value;
   reason: string | null;
   when: string;
-  giver: { uuid: string; username: string };
+  giver: { uuid: string; username: string; rank: Rank | null };
   reply: { text: string; when: string } | null;
   /** The viewer gave this one. */
   mine: boolean;
   /** The viewer already reported this one. */
   reported: boolean;
+  /** Emoji reactions, in picker order. Empty when there are none. */
+  reactions: ReactionView[];
+};
+
+export type ReactionView = { emoji: Reaction; count: number; mine: boolean };
+
+/** One +1/−1 a Player gave, shaped for the client. */
+export type GivenView = {
+  id: string;
+  value: Value;
+  reason: string | null;
+  when: string;
+  receiver: { uuid: string; username: string };
+  reply: { text: string; when: string } | null;
 };
 
 /** What the give/change/remove dialogs need to know about the viewer and the Player they are viewing. */

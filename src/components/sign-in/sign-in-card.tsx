@@ -44,8 +44,8 @@ export function SignInCard() {
   if (state.status === "success") {
     return (
       <Card success>
-        <div role="status" className="flex flex-col items-center gap-3.5 text-center">
-          <div className="flex size-14 items-center justify-center rounded border-2 border-pos-line bg-pos-bg text-pos">
+        <div role="status" className="stagger flex flex-col items-center gap-3.5 text-center [--stagger-step:50ms]">
+          <div className="flex size-14 animate-pop items-center justify-center rounded border-2 border-pos-line bg-pos-bg text-pos">
             <LuCheck aria-hidden className="size-7" strokeWidth={2.5} />
           </div>
           <h2 className="font-pixel text-[26px] font-bold">You&apos;re signed in</h2>
@@ -53,17 +53,17 @@ export function SignInCard() {
             <SkinHead uuid={state.uuid} username={state.username} size={36} />
             <span className="font-mono text-base font-bold">{state.username}</span>
           </div>
-          <p className="leading-relaxed text-ink-2">You&apos;re now a Linked Player. You&apos;ll stay signed in on this device for 30 days.</p>
+          <p className="leading-relaxed text-ink-2">You&apos;re now a Linked Player. You&apos;ll stay signed in on this device unless you don&apos;t visit for 90 days.</p>
           <div className="mt-1 flex w-full flex-col gap-2.5">
             <Link
               href={`/player/${state.username}`}
-              className="shadow-block flex h-[52px] items-center justify-center rounded bg-accent text-base font-bold text-accent-ink no-underline hover:bg-accent-hover hover:text-accent-ink"
+              className="press shadow-block flex h-[52px] items-center justify-center rounded bg-accent text-base font-bold text-accent-ink no-underline hover:bg-accent-hover hover:text-accent-ink"
             >
               Go to my profile
             </Link>
             <Link
               href="/"
-              className="flex h-12 items-center justify-center rounded border-2 border-line-strong text-[15px] font-semibold text-ink no-underline hover:text-ink"
+              className="press flex h-12 items-center justify-center rounded border-2 border-line-strong text-[15px] font-semibold text-ink no-underline hover:text-ink"
             >
               Look up a Player
             </Link>
@@ -110,7 +110,7 @@ export function SignInCard() {
         </div>
         <div id="code-msg">
           {error && (
-            <div role="alert" className="flex gap-2.5 rounded border-2 border-neg-line bg-neg-bg px-3.5 py-3">
+            <div role="alert" className="flex animate-enter gap-2.5 rounded border-2 border-neg-line bg-neg-bg px-3.5 py-3">
               <error.icon aria-hidden className="mt-px size-[18px] shrink-0 text-neg" />
               <div className="flex flex-col gap-1">
                 <strong className="text-sm text-[#ffd9d9]">{error.title}</strong>
@@ -129,7 +129,7 @@ export function SignInCard() {
         <div className="flex flex-col gap-2 pt-1 text-[13px] leading-normal text-muted">
           <span className="flex gap-2">
             <LuClock aria-hidden className="mt-0.5 size-[15px] shrink-0 text-pos" />
-            You&apos;ll stay signed in on this device for 30 days.
+            You&apos;ll stay signed in on this device unless you don&apos;t visit for 90 days.
           </span>
           <span className="flex gap-2">
             <LuShieldCheck aria-hidden className="mt-0.5 size-[15px] shrink-0 text-pos" />

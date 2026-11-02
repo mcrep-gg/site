@@ -1,13 +1,14 @@
 import { eq, sql } from "drizzle-orm";
 import type { Db } from "@/db/client";
 import { players } from "@/db/schema";
+import { rankOf, type Rank } from "@/lib/ranks";
 
 /** Java Edition usernames. Some very old accounts are shorter than 3 characters. */
 export const USERNAME_RE = /^[A-Za-z0-9_]{1,16}$/;
 
 const REFRESH_MS = 24 * 60 * 60 * 1000;
 
-export type Player = { uuid: string; username: string; linkedAt: Date | null };
+export type Player = { uuid: string; username: string; linkedAt: Date | null; rank: Rank | null };
 
 /** Mojang returns UUIDs without dashes; we store them dashed and lowercase. */
 export function dashUuid(raw: string): string {
@@ -41,10 +42,10 @@ export const mojangLookup: MojangLookup = async (username) => {
 
 export async function getPlayer(db: Db, uuid: string): Promise<Player | null> {
   const [row] = await db
-    .select({ uuid: players.uuid, username: players.username, linkedAt: players.linkedAt })
+    .select({ uuid: players.uuid, username: players.username, linkedAt: players.linkedAt, rank: players.rank })
     .from(players)
     .where(eq(players.uuid, uuid));
-  return row ?? null;
+  return row ? { ...row, rank: rankOf(row.uuid, row.rank) } : null;
 }
 
 /**
@@ -54,13 +55,13 @@ export async function getPlayer(db: Db, uuid: string): Promise<Player | null> {
 export async function findPlayerByName(db: Db, username: string, lookup: MojangLookup = mojangLookup, now = new Date()): Promise<Player | null> {
   if (!USERNAME_RE.test(username)) return null;
   const [local] = await db
-    .select({ uuid: players.uuid, username: players.username, linkedAt: players.linkedAt, refreshedAt: players.refreshedAt })
+    .select({ uuid: players.uuid, username: players.username, linkedAt: players.linkedAt, rank: players.rank, refreshedAt: players.refreshedAt })
     .from(players)
     .where(sql`lower(${players.username}) = ${username.toLowerCase()}`)
     .orderBy(sql`${players.refreshedAt} desc`)
     .limit(1);
   if (local && now.getTime() - local.refreshedAt.getTime() < REFRESH_MS) {
-    return { uuid: local.uuid, username: local.username, linkedAt: local.linkedAt };
+    return { uuid: local.uuid, username: local.username, linkedAt: local.linkedAt, rank: rankOf(local.uuid, local.rank) };
   }
 
   const found = await lookup(username);
@@ -69,6 +70,6 @@ export async function findPlayerByName(db: Db, username: string, lookup: MojangL
     .insert(players)
     .values({ uuid: found.uuid, username: found.username, refreshedAt: now })
     .onConflictDoUpdate({ target: players.uuid, set: { username: found.username, refreshedAt: now } })
-    .returning({ uuid: players.uuid, username: players.username, linkedAt: players.linkedAt });
-  return row;
+    .returning({ uuid: players.uuid, username: players.username, linkedAt: players.linkedAt, rank: players.rank });
+  return { ...row, rank: rankOf(row.uuid, row.rank) };
 }

@@ -1,6 +1,8 @@
 "use client";
 
 import { useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import { motion } from "motion/react";
+import { useReducedMotion } from "@/hooks/use-reduced-motion";
 
 const TABS = [
   { id: "highest", label: "Highest" },
@@ -9,12 +11,15 @@ const TABS = [
 
 type TabId = (typeof TABS)[number]["id"];
 
+const PILL = { type: "spring", duration: 0.35, bounce: 0.15 } as const;
+
 /**
  * Both lists side by side on wider screens. Below `md` the lists become tabs and only the chosen one shows.
  * The lists are rendered on the server and passed in.
  */
 export function LeaderboardTabs({ highest, lowest }: { highest: ReactNode; lowest: ReactNode }) {
   const [tab, setTab] = useState<TabId>("highest");
+  const reduceMotion = useReducedMotion();
   const refs = useRef<Record<TabId, HTMLButtonElement | null>>({ highest: null, lowest: null });
 
   function onKeyDown(e: KeyboardEvent<HTMLDivElement>) {
@@ -52,11 +57,18 @@ export function LeaderboardTabs({ highest, lowest }: { highest: ReactNode; lowes
               aria-controls={`leaderboard-panel-${t.id}`}
               tabIndex={on ? 0 : -1}
               onClick={() => setTab(t.id)}
-              className={`flex h-11 flex-1 cursor-pointer items-center justify-center gap-1.5 rounded border-0 text-sm font-bold ${
-                on ? "bg-ink text-page" : "bg-transparent text-ink-2 hover:text-ink"
-              }`}
+              className="relative flex h-11 flex-1 cursor-pointer items-center justify-center gap-1.5 rounded border-0 bg-transparent text-sm font-bold text-ink"
             >
-              {t.label}
+              {on && (
+                <motion.span
+                  layoutId="leaderboard-tab"
+                  aria-hidden
+                  transition={reduceMotion ? { duration: 0 } : PILL}
+                  className="absolute inset-0 rounded bg-ink"
+                />
+              )}
+              {/* Difference blending turns the label dark exactly where the pill is under it, even mid-slide. */}
+              <span className="relative mix-blend-difference">{t.label}</span>
             </button>
           );
         })}

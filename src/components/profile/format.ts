@@ -36,3 +36,9 @@ export function timeUntil(date: Date, now: Date): string {
 export function shortDate(date: Date): string {
   return new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }).format(date);
 }
+
+/** "14 Nov 2026, 15:04 UTC", for logs where the exact moment matters. */
+export function shortDateTime(date: Date): string {
+  const time = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZone: "UTC" }).format(date);
+  return `${shortDate(date)}, ${time} UTC`;
+}

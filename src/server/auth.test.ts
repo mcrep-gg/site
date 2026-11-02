@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import type { Db } from "@/db/client";
 import { testDb } from "@/test/db";
 import { issueLinkCode, redeemLinkCode, sessionPlayer } from "./auth";
+import { SESSION_TTL_MS } from "@/lib/session";
 import { getPlayer } from "./players";
 
 const steve = { uuid: "069a79f4-44e9-4726-a5be-fca90e38aaf5", username: "Notch" };
@@ -48,9 +49,18 @@ describe("Link Codes", () => {
     expect((await getPlayer(db, steve.uuid))?.linkedAt).toEqual(now);
   });
 
-  it("expires sessions after 30 days", async () => {
+  it("expires sessions after 90 days without a visit", async () => {
     const r = await redeemLinkCode(db, (await issueLinkCode(db, steve, now)).code, now);
     if (!r.ok) throw new Error("expected redeem");
-    expect(await sessionPlayer(db, r.token, later(30 * 24 * 60 * 60 * 1000))).toBeNull();
+    expect(await sessionPlayer(db, r.token, later(SESSION_TTL_MS))).toBeNull();
+  });
+
+  it("keeps sessions open while the Player keeps visiting", async () => {
+    const r = await redeemLinkCode(db, (await issueLinkCode(db, steve, now)).code, now);
+    if (!r.ok) throw new Error("expected redeem");
+    const day = 24 * 60 * 60 * 1000;
+    // Visits every 60 days run well past the first 90.
+    for (const at of [60, 120, 180]) expect(await sessionPlayer(db, r.token, later(at * day))).not.toBeNull();
+    expect(await sessionPlayer(db, r.token, later(180 * day + SESSION_TTL_MS))).toBeNull();
   });
 });

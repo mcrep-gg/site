@@ -4,8 +4,8 @@ import { connection } from "next/server";
 import { cache } from "react";
 import { db } from "@/db";
 import { sessionPlayer, type SessionPlayer } from "@/server/auth";
-
-export const SESSION_COOKIE = "mcrep_session";
+import { canModerate } from "./ranks";
+import { SESSION_COOKIE } from "./session";
 
 /**
  * The signed-in Linked Player for this request, or null.
@@ -18,4 +18,19 @@ export const getViewer = cache(async (): Promise<SessionPlayer | null> => {
   const token = (await cookies()).get(SESSION_COOKIE)?.value;
   if (!token) return null;
   return sessionPlayer(db, token);
+});
+
+/**
+ * The signed-in Admin or Staff for this request, or null. Every moderation page and Server Action checks this itself;
+ * the dashboard layout is not a gate.
+ */
+export const getModerator = cache(async (): Promise<SessionPlayer | null> => {
+  const viewer = await getViewer();
+  return viewer && canModerate(viewer.rank) ? viewer : null;
+});
+
+/** The signed-in Admin for this request, or null. Only Admins give out ranks. */
+export const getAdmin = cache(async (): Promise<SessionPlayer | null> => {
+  const viewer = await getViewer();
+  return viewer?.rank === "admin" ? viewer : null;
 });
