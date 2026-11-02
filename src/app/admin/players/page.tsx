@@ -5,9 +5,10 @@ import { LuChevronRight, LuSearch, LuSearchX } from "react-icons/lu";
 import { db } from "@/db";
 import { searchPlayers } from "@/server/admin";
 import { adminPlayerPath, Empty, PageTitle } from "@/components/admin/ui";
+import { RankBadge } from "@/components/rank-badge";
 import { SkinHead } from "@/components/skin-head";
 import { shortDate } from "@/components/profile/format";
-import { requireAdmin } from "../data";
+import { requireModerator } from "../data";
 
 export const metadata: Metadata = { title: "Players" };
 
@@ -25,7 +26,7 @@ export default function PlayersPage({ searchParams }: { searchParams: SearchPara
 }
 
 async function Players({ searchParams }: { searchParams: SearchParams }) {
-  await requireAdmin();
+  await requireModerator();
   const raw = (await searchParams).q;
   const q = typeof raw === "string" ? raw.trim().slice(0, 64) : "";
   const matches = await searchPlayers(db, q);
@@ -64,7 +65,10 @@ async function Players({ searchParams }: { searchParams: SearchParams }) {
                 <Link href={adminPlayerPath(p.uuid)} className="flex min-h-16 items-center gap-3 px-4 py-2.5 text-ink no-underline hover:bg-surface-3 hover:text-ink">
                   <SkinHead uuid={p.uuid} username={p.username} size={36} />
                   <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                    <span className="truncate font-mono text-sm font-bold">{p.username}</span>
+                    <span className="flex min-w-0 items-center gap-2">
+                      <span className="truncate font-mono text-sm font-bold">{p.username}</span>
+                      <RankBadge rank={p.rank} size="sm" />
+                    </span>
                     <span className="truncate font-mono text-xs text-muted">{p.uuid}</span>
                   </div>
                   <span className="shrink-0 text-[13px] text-muted max-sm:hidden">

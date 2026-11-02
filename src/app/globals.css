@@ -36,6 +36,17 @@
   --color-neg-line: #7a2e31;
   --color-neg-ink: #1a0606;
 
+  /* Rank badges: red Admin, blue Staff, green Pro. The text is the rank colour; -bg and -line are dark tints of it. */
+  --color-admin: #fc033d;
+  --color-admin-bg: #24040b;
+  --color-admin-line: #7a0a24;
+  --color-staff: #036ffc;
+  --color-staff-bg: #020c1c;
+  --color-staff-line: #0a3b80;
+  --color-pro: #6af77b;
+  --color-pro-bg: #0b2410;
+  --color-pro-line: #2a6b33;
+
   --font-sans: var(--font-inter), system-ui, sans-serif;
   --font-mono: var(--font-jetbrains-mono), ui-monospace, monospace;
   --font-pixel: var(--font-pixelify-sans), var(--font-inter), sans-serif;

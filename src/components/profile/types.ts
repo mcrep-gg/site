@@ -1,3 +1,4 @@
+import type { Rank } from "@/lib/ranks";
 import type { Reaction, Value } from "@/lib/rules";
 
 /** One +1/−1 a Player received, shaped for the client: dates already formatted on the server. */
@@ -6,7 +7,7 @@ export type EntryView = {
   value: Value;
   reason: string | null;
   when: string;
-  giver: { uuid: string; username: string };
+  giver: { uuid: string; username: string; rank: Rank | null };
   reply: { text: string; when: string } | null;
   /** The viewer gave this one. */
   mine: boolean;

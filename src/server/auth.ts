@@ -2,6 +2,7 @@ import { createHash, randomBytes, randomInt } from "node:crypto";
 import { and, eq, gt, isNull } from "drizzle-orm";
 import type { Db } from "@/db/client";
 import { linkCodes, players, sessions } from "@/db/schema";
+import { rankOf, type Rank } from "@/lib/ranks";
 import { SESSION_TTL_MS } from "@/lib/session";
 
 export const LINK_CODE_TTL_MS = 5 * 60 * 1000;
@@ -75,13 +76,13 @@ export async function redeemLinkCode(db: Db, rawCode: string, now = new Date()):
   });
 }
 
-export type SessionPlayer = { uuid: string; username: string; linkedAt: Date };
+export type SessionPlayer = { uuid: string; username: string; linkedAt: Date; rank: Rank | null };
 
 /** The Player a session token belongs to, or null. Using a session pushes its expiry forward. */
 export async function sessionPlayer(db: Db, token: string, now = new Date()): Promise<SessionPlayer | null> {
   const tokenHash = sha256(token);
   const [row] = await db
-    .select({ uuid: players.uuid, username: players.username, linkedAt: players.linkedAt, expiresAt: sessions.expiresAt })
+    .select({ uuid: players.uuid, username: players.username, linkedAt: players.linkedAt, rank: players.rank, expiresAt: sessions.expiresAt })
     .from(sessions)
     .innerJoin(players, eq(players.uuid, sessions.playerUuid))
     .where(and(eq(sessions.tokenHash, tokenHash), gt(sessions.expiresAt, now)));
@@ -92,7 +93,7 @@ export async function sessionPlayer(db: Db, token: string, now = new Date()): Pr
       .set({ expiresAt: new Date(now.getTime() + SESSION_TTL_MS) })
       .where(eq(sessions.tokenHash, tokenHash));
   }
-  return { uuid: row.uuid, username: row.username, linkedAt: row.linkedAt };
+  return { uuid: row.uuid, username: row.username, linkedAt: row.linkedAt, rank: rankOf(row.uuid, row.rank) };
 }
 
 export async function endSession(db: Db, token: string): Promise<void> {

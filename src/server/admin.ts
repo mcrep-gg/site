@@ -3,6 +3,7 @@ import { alias, type AnyPgColumn } from "drizzle-orm/pg-core";
 import type { Db } from "@/db/client";
 import { players, reports, reputation, reputationEvents, suspensions } from "@/db/schema";
 import { SUSPENSION_REASON_MAX } from "@/lib/admin";
+import { canModerate, rankOf, type Rank } from "@/lib/ranks";
 import { normalizeText, type Value } from "@/lib/rules";
 import { activeSuspension, totalsFor, type Totals } from "./reputation";
 
@@ -207,15 +208,19 @@ export async function resolveReport(
 // ---------------------------------------------------------------------------------------------------------------------
 // Players
 
-export type PlayerMatch = { uuid: string; username: string; linkedAt: Date | null };
+export type PlayerMatch = { uuid: string; username: string; linkedAt: Date | null; rank: Rank | null };
 
 /**
  * Players the site already knows, by username prefix or exact UUID. Never asks Mojang: Admins only act on Players with a row.
  * An empty query lists the most recently linked Players.
  */
 export async function searchPlayers(db: Db, query: string, limit = 20): Promise<PlayerMatch[]> {
-  const q = query.trim();
-  const select = db.select({ uuid: players.uuid, username: players.username, linkedAt: players.linkedAt }).from(players);
+  const rows = await findPlayers(db, query.trim(), limit);
+  return rows.map((r) => ({ ...r, rank: rankOf(r.uuid, r.rank) }));
+}
+
+function findPlayers(db: Db, q: string, limit: number) {
+  const select = db.select({ uuid: players.uuid, username: players.username, linkedAt: players.linkedAt, rank: players.rank }).from(players);
   if (!q) {
     return select.where(sql`${players.linkedAt} is not null`).orderBy(desc(players.linkedAt)).limit(limit);
   }
@@ -293,11 +298,12 @@ async function entries(db: Db, uuid: string, side: "received" | "given"): Promis
 
 /** Everything an Admin needs to moderate one Player. Null when the site has no row for them. */
 export async function playerDetail(db: Db, uuid: string, now = new Date()): Promise<PlayerDetail | null> {
-  const [player] = await db
-    .select({ uuid: players.uuid, username: players.username, linkedAt: players.linkedAt })
+  const [row] = await db
+    .select({ uuid: players.uuid, username: players.username, linkedAt: players.linkedAt, rank: players.rank })
     .from(players)
     .where(eq(players.uuid, uuid));
-  if (!player) return null;
+  if (!row) return null;
+  const player = { ...row, rank: rankOf(row.uuid, row.rank) };
 
   const creator = alias(players, "creator");
   const lifter = alias(players, "lifter");
@@ -346,10 +352,13 @@ export async function playerDetail(db: Db, uuid: string, now = new Date()): Prom
 // ---------------------------------------------------------------------------------------------------------------------
 // Suspensions
 
-export type SuspendError = "not_found" | "self" | "reason_required" | "reason_too_long" | "until_past" | "already_suspended";
+export type SuspendError = "not_found" | "self" | "moderator" | "reason_required" | "reason_too_long" | "until_past" | "already_suspended";
 export type SuspendResult = { ok: true } | { ok: false; error: SuspendError };
 
-/** Stops a Player giving, changing or removing Reputation. `until` null means until an Admin lifts it. */
+/**
+ * Stops a Player giving, changing or removing Reputation. `until` null means until it is lifted.
+ * Admins and Staff can't be suspended: an Admin takes away a Staff rank first.
+ */
 export async function suspendPlayer(
   db: Db,
   input: { playerUuid: string; adminUuid: string; reason: string; until: Date | null; now?: Date },
@@ -362,8 +371,9 @@ export async function suspendPlayer(
   if (input.until && input.until <= now) return { ok: false, error: "until_past" };
 
   return db.transaction(async (tx) => {
-    const [player] = await tx.select({ uuid: players.uuid }).from(players).where(eq(players.uuid, input.playerUuid));
+    const [player] = await tx.select({ uuid: players.uuid, rank: players.rank }).from(players).where(eq(players.uuid, input.playerUuid));
     if (!player) return { ok: false, error: "not_found" } as const;
+    if (canModerate(rankOf(player.uuid, player.rank))) return { ok: false, error: "moderator" } as const;
     if (await activeSuspension(tx, input.playerUuid, now)) return { ok: false, error: "already_suspended" } as const;
     await tx.insert(suspensions).values({ playerUuid: input.playerUuid, reason, until: input.until, createdAt: now, createdBy: input.adminUuid });
     return { ok: true } as const;

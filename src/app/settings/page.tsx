@@ -9,6 +9,7 @@ import { DAILY_LIMIT, NEW_PLAYER_DAILY_LIMIT, NEW_PLAYER_DAYS } from "@/lib/rule
 import { getViewer } from "@/lib/viewer";
 import { givingAllowance } from "@/server/reputation";
 import { CopyButton } from "@/components/sign-in/copy-button";
+import { RankBadge } from "@/components/rank-badge";
 import { SkinHead } from "@/components/skin-head";
 import { shortDate, timeUntil } from "@/components/profile/format";
 
@@ -46,7 +47,10 @@ async function Sections() {
         <div className="flex items-center gap-4">
           <SkinHead uuid={viewer.uuid} username={viewer.username} size={56} />
           <div className="flex min-w-0 flex-col gap-1">
-            <span className="font-mono text-lg font-bold [overflow-wrap:anywhere]">{viewer.username}</span>
+            <span className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
+              <span className="font-mono text-lg font-bold [overflow-wrap:anywhere]">{viewer.username}</span>
+              <RankBadge rank={viewer.rank} />
+            </span>
             <span className="text-[13px] text-muted">Linked Player since {shortDate(viewer.linkedAt)}</span>
           </div>
         </div>
@@ -73,7 +77,7 @@ async function Sections() {
             <LuBan aria-hidden className="mt-0.5 size-4 shrink-0 text-neg" />
             <div className="flex flex-col gap-1 text-sm leading-normal">
               <strong className="text-[#ffd9d9]">
-                An Admin suspended you from giving Reputation{suspension.until ? ` until ${shortDate(suspension.until)}` : ""}.
+                Staff suspended you from giving Reputation{suspension.until ? ` until ${shortDate(suspension.until)}` : ""}.
               </strong>
               <span className="text-[#f2c4c4]">{suspension.reason}</span>
             </div>

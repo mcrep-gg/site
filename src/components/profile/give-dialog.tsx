@@ -59,7 +59,7 @@ function GiveForm({ ctx, initialChoice, onClose }: { ctx: GiveContext; initialCh
     ? "A −1 needs a reason. Say what happened so other Players can judge."
     : isPlus
       ? "Optional. A few words help others, like what you traded."
-      : "Keep it factual. Other Players and Admins will read this.";
+      : "Keep it factual. Other Players and Staff will read this.";
   const left = Math.max(0, ctx.limit - ctx.usedToday);
 
   return (
@@ -255,15 +255,15 @@ function SuspendedNotice({ suspension, onClose }: { suspension: NonNullable<Give
           <p className="m-0 max-w-[400px] leading-[1.55] text-ink-2">
             {suspension.until ? (
               <>
-                An Admin suspended you from giving Reputation until <strong className="text-ink">{suspension.until}</strong>.
+                Staff suspended you from giving Reputation until <strong className="text-ink">{suspension.until}</strong>.
               </>
             ) : (
-              "An Admin suspended you from giving Reputation."
+              "Staff suspended you from giving Reputation."
             )}
           </p>
         </div>
         <div className="rounded border-2 border-line bg-surface-2 px-3.5 py-3 text-sm leading-normal">
-          <span className="mb-1 block text-xs font-bold tracking-[0.06em] text-muted uppercase">Reason from the Admin</span>
+          <span className="mb-1 block text-xs font-bold tracking-[0.06em] text-muted uppercase">Reason from Staff</span>
           {suspension.reason}
         </div>
         <ul className="m-0 flex list-none flex-col gap-2.5 p-0 text-sm leading-[1.45] text-ink-2">

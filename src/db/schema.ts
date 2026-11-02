@@ -13,6 +13,7 @@ import {
 } from "drizzle-orm/pg-core";
 // Relative, not "@/": drizzle-kit loads this file without the tsconfig paths.
 import { REACTION_KEYS, type Reaction } from "../lib/rules";
+import { STORED_RANKS } from "../lib/ranks";
 
 const ts = (name: string) => timestamp(name, { withTimezone: true, mode: "date" });
 
@@ -26,8 +27,17 @@ export const players = pgTable(
     linkedAt: ts("linked_at"),
     /** When `username` was last confirmed with Mojang. */
     refreshedAt: ts("refreshed_at").notNull().defaultNow(),
+    /** Staff or Pro, given by an Admin. Admin itself comes from ADMIN_UUIDS, never this column. */
+    rank: text("rank", { enum: STORED_RANKS }),
+    /** When an Admin last gave or took away the rank, and who. */
+    rankSetAt: ts("rank_set_at"),
+    rankSetBy: uuid("rank_set_by"),
   },
-  (t) => [index("players_username_lower_idx").on(sql`lower(${t.username})`)],
+  (t) => [
+    index("players_username_lower_idx").on(sql`lower(${t.username})`),
+    index("players_rank_idx").on(t.rank),
+    check("players_rank_check", sql`${t.rank} in ('staff', 'pro')`),
+  ],
 );
 
 /** Single-use codes the Link Server issues. Stored hashed. */

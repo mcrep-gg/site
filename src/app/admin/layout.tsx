@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import { Suspense, type ReactNode } from "react";
 import { LuShieldCheck } from "react-icons/lu";
 import { AdminNav } from "@/components/admin/admin-nav";
-import { getOverview, requireAdmin } from "./data";
+import { RankBadge } from "@/components/rank-badge";
+import { getOverview, requireModerator } from "./data";
 
 export const metadata: Metadata = {
   title: { default: "Admin", template: "%s | Admin | mcrep.gg" },
@@ -20,11 +21,11 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
 }
 
 /**
- * Anyone who isn't an Admin gets a 404, so the dashboard doesn't advertise itself.
+ * Anyone who isn't an Admin or Staff gets a 404, so the dashboard doesn't advertise itself.
  * Pages and Server Actions still check for themselves: this only keeps the nav from showing.
  */
 async function Shell({ children }: { children: ReactNode }) {
-  const admin = await requireAdmin();
+  const viewer = await requireModerator();
   const { openReports } = await getOverview();
   return (
     <>
@@ -32,10 +33,11 @@ async function Shell({ children }: { children: ReactNode }) {
         <h1 className="m-0 font-pixel text-[32px] leading-[1.05] font-bold sm:text-[44px]">Admin</h1>
         <p className="m-0 flex items-center gap-1.5 text-[13px] text-muted">
           <LuShieldCheck aria-hidden className="size-4 text-accent" />
-          Signed in as <span className="font-mono font-bold text-ink-2">{admin.username}</span>
+          Signed in as <span className="font-mono font-bold text-ink-2">{viewer.username}</span>
+          <RankBadge rank={viewer.rank} size="sm" />
         </p>
       </div>
-      <AdminNav openReports={openReports} />
+      <AdminNav openReports={openReports} isAdmin={viewer.rank === "admin"} />
       <div className="flex flex-col gap-6">{children}</div>
     </>
   );

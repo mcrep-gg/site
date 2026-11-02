@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LuFlag, LuHistory, LuLayoutDashboard, LuUsers } from "react-icons/lu";
+import { LuCrown, LuFlag, LuHistory, LuLayoutDashboard, LuUsers } from "react-icons/lu";
 
 const LINKS = [
   { href: "/admin", label: "Overview", icon: LuLayoutDashboard },
@@ -11,11 +11,15 @@ const LINKS = [
   { href: "/admin/activity", label: "Activity", icon: LuHistory },
 ] as const;
 
-export function AdminNav({ openReports }: { openReports: number }) {
+/** Only Admins see it: Staff can moderate but not give out ranks. */
+const RANKS_LINK = { href: "/admin/ranks", label: "Ranks", icon: LuCrown } as const;
+
+export function AdminNav({ openReports, isAdmin }: { openReports: number; isAdmin: boolean }) {
   const pathname = usePathname();
+  const links = isAdmin ? [...LINKS, RANKS_LINK] : LINKS;
   return (
     <nav aria-label="Admin" className="flex gap-1 overflow-x-auto rounded-md border-2 border-line bg-surface p-1">
-      {LINKS.map(({ href, label, icon: Icon }) => {
+      {links.map(({ href, label, icon: Icon }) => {
         const on = href === "/admin" ? pathname === href : pathname.startsWith(href);
         return (
           <Link

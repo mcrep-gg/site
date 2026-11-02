@@ -2,7 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { Suspense } from "react";
 import { LuLogIn, LuSearch, LuTrophy } from "react-icons/lu";
-import { isAdmin } from "@/lib/admin";
+import { canModerate } from "@/lib/ranks";
 import { getViewer } from "@/lib/viewer";
 import { HeaderSearch } from "./header-search";
 import { UserMenu } from "./user-menu";
@@ -46,5 +46,5 @@ async function ViewerButton() {
       </Link>
     );
   }
-  return <UserMenu uuid={viewer.uuid} username={viewer.username} isAdmin={isAdmin(viewer.uuid)} />;
+  return <UserMenu uuid={viewer.uuid} username={viewer.username} showAdmin={canModerate(viewer.rank)} />;
 }

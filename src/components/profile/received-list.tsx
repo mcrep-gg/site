@@ -5,6 +5,7 @@ import { useState, type CSSProperties } from "react";
 import { motion } from "motion/react";
 import { LuClock, LuCornerDownRight, LuFlag, LuMessageSquare, LuPencil } from "react-icons/lu";
 import { ValueChip } from "@/components/reputation";
+import { RankBadge } from "@/components/rank-badge";
 import { SkinHead } from "@/components/skin-head";
 import { useReducedMotion } from "@/hooks/use-reduced-motion";
 import { ReplyDialog, ReportDialog } from "./entry-dialogs";
@@ -117,6 +118,7 @@ export function ReceivedList({
                     >
                       {e.giver.username}
                     </Link>
+                    <RankBadge rank={e.giver.rank} size="sm" />
                     {e.mine && (
                       <span className="inline-flex h-[22px] items-center rounded-[3px] bg-accent-bg px-[7px] text-xs font-bold text-accent">
                         You gave this

@@ -8,7 +8,7 @@ import { activity, EVENT_ACTIONS, type EventAction } from "@/server/admin";
 import { Empty, PageTitle, PlayerLink } from "@/components/admin/ui";
 import { ValueChip } from "@/components/reputation";
 import { shortDateTime } from "@/components/profile/format";
-import { requireAdmin } from "../data";
+import { requireModerator } from "../data";
 
 export const metadata: Metadata = { title: "Activity" };
 
@@ -18,7 +18,7 @@ const ACTION_LABELS: Record<EventAction, string> = {
   give: "Gave",
   change: "Changed",
   remove: "Took back",
-  admin_remove: "Admin removed",
+  admin_remove: "Removed by Staff",
 };
 
 const actionStyle: Record<EventAction, string> = {
@@ -44,7 +44,7 @@ export default function ActivityPage({ searchParams }: { searchParams: SearchPar
 const one = (v: string | string[] | undefined) => (typeof v === "string" ? v : undefined);
 
 async function Log({ searchParams }: { searchParams: SearchParams }) {
-  await requireAdmin();
+  await requireModerator();
   const sp = await searchParams;
   const playerParam = one(sp.player)?.toLowerCase();
   const playerUuid = playerParam && UUID_RE.test(playerParam) ? playerParam : undefined;

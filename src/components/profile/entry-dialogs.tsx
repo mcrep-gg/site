@@ -136,7 +136,7 @@ export function ReplyDialog({ entry, viewerName, onClose }: { entry: EntryView; 
 
 const CATEGORY_KEYS = Object.keys(REPORT_CATEGORIES) as ReportCategory[];
 
-/** Ask an Admin to review a +1/−1. */
+/** Ask Staff to review a +1/−1. */
 export function ReportDialog({
   entry,
   receiverName,
@@ -178,7 +178,7 @@ export function ReportDialog({
             </div>
             <h3 className="m-0 font-pixel text-2xl font-bold">Report sent</h3>
             <p className="m-0 max-w-[380px] leading-[1.55] text-ink-2">
-              An Admin will review the {valueText} from {entry.giver.username}. If it breaks the rules, they&apos;ll remove it and{" "}
+              Staff will review the {valueText} from {entry.giver.username}. If it breaks the rules, they&apos;ll remove it and{" "}
               {isOwn ? "your" : `${receiverName}'s`} Net Reputation will update.
             </p>
             <p className="m-0 max-w-[380px] text-[13px] leading-normal text-muted">You can report each +1 or −1 once.</p>
@@ -225,7 +225,7 @@ export function ReportDialog({
             <div className="flex flex-col gap-2">
               <div className="flex items-center justify-between gap-2">
                 <label htmlFor={detailsId} className="text-sm font-bold">
-                  Details for the Admin
+                  Details for Staff
                 </label>
                 <span className="text-xs font-semibold text-muted">{needsDetails ? "Required for Something else" : "Optional"}</span>
               </div>
@@ -246,7 +246,7 @@ export function ReportDialog({
             </div>
 
             <p className="m-0 text-[13px] leading-normal text-muted">
-              An Admin will review this Reputation. It stays visible while they look. {entry.giver.username} won&apos;t be told who
+              Staff will review this Reputation. It stays visible while they look. {entry.giver.username} won&apos;t be told who
               reported it.
             </p>
             <ErrorNote message={state.status === "error" ? state.message : null} />

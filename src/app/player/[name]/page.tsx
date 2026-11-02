@@ -9,6 +9,7 @@ import { formatNet } from "@/lib/rules";
 import { getViewer } from "@/lib/viewer";
 import { findPlayerByName, type Player } from "@/server/players";
 import { givenReputation, giverStatus, hasReported, reactionsFor, receivedReputation, totalsFor } from "@/server/reputation";
+import { RankBadge } from "@/components/rank-badge";
 import { SkinHead } from "@/components/skin-head";
 import { shortDate, timeAgo, timeUntil } from "@/components/profile/format";
 import { GivePanel } from "@/components/profile/give-panel";
@@ -147,6 +148,7 @@ async function Profile({ params }: { params: Params }) {
           <div className="flex min-w-0 flex-col gap-2.5">
             <h1 className="m-0 font-pixel text-[28px] leading-[1.05] font-bold [overflow-wrap:anywhere] sm:text-[40px]">{username}</h1>
             <div className="flex flex-wrap gap-1.5">
+              <RankBadge rank={player.rank} />
               {player.linkedAt ? (
                 <Badge className="gap-[5px] border border-line-strong bg-surface-3 font-semibold text-ink-2">
                   <LuCheck aria-hidden className="size-[13px]" />

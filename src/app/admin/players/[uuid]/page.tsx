@@ -2,18 +2,21 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
-import { LuBan, LuExternalLink, LuHistory, LuShieldOff, LuInbox, LuSend } from "react-icons/lu";
+import { LuBan, LuCrown, LuExternalLink, LuHistory, LuShieldOff, LuInbox, LuSend } from "react-icons/lu";
 import { liftSuspensionAction } from "@/app/admin/actions";
 import { db } from "@/db";
 import { playerDetail, type AdminEntry, type SuspensionRow } from "@/server/admin";
 import { ActionButton } from "@/components/admin/action-button";
+import { RankForm } from "@/components/admin/rank-form";
 import { SuspendForm } from "@/components/admin/suspend-form";
 import { Panel, PlayerLink, RemoveButton } from "@/components/admin/ui";
 import { CopyButton } from "@/components/sign-in/copy-button";
+import { RankBadge } from "@/components/rank-badge";
 import { NetReputation, ValueChip } from "@/components/reputation";
 import { SkinHead } from "@/components/skin-head";
 import { shortDate, shortDateTime, timeAgo } from "@/components/profile/format";
-import { requireAdmin } from "../../data";
+import { canModerate, isStoredRank } from "@/lib/ranks";
+import { requireModerator } from "../../data";
 
 export const metadata: Metadata = { title: "Player" };
 
@@ -30,7 +33,7 @@ export default function AdminPlayerPage({ params }: { params: Params }) {
 }
 
 async function Detail({ params }: { params: Params }) {
-  const admin = await requireAdmin();
+  const viewer = await requireModerator();
   const uuid = (await params).uuid.toLowerCase();
   if (!UUID_RE.test(uuid)) notFound();
   const now = new Date();
@@ -47,6 +50,7 @@ async function Detail({ params }: { params: Params }) {
         <div className="flex min-w-0 flex-1 basis-[240px] flex-col gap-1.5">
           <h2 className="m-0 flex flex-wrap items-center gap-2 font-mono text-2xl font-bold [overflow-wrap:anywhere]">
             {player.username}
+            <RankBadge rank={player.rank} />
             {active && (
               <span className="inline-flex h-6 items-center gap-1 rounded-[3px] border border-neg-line bg-neg-bg px-2 font-sans text-xs font-bold text-neg">
                 <LuBan aria-hidden className="size-3" />
@@ -76,8 +80,14 @@ async function Detail({ params }: { params: Params }) {
       <Panel title={<><LuBan aria-hidden className="size-[18px] text-accent" /> Suspension</>}>
         {active ? (
           <ActiveSuspension suspension={active} />
-        ) : player.uuid === admin.uuid ? (
+        ) : player.uuid === viewer.uuid ? (
           <p className="m-0 text-sm text-muted">You can&apos;t suspend yourself.</p>
+        ) : canModerate(player.rank) ? (
+          <p className="m-0 text-sm text-muted">
+            {player.rank === "admin"
+              ? "Admins can't be suspended."
+              : `Staff can't be suspended. An Admin has to take away ${player.username}'s Staff rank first.`}
+          </p>
         ) : (
           <>
             <p className="m-0 text-sm leading-normal text-ink-2">
@@ -88,6 +98,18 @@ async function Detail({ params }: { params: Params }) {
         )}
         {suspensions.some((s) => !s.active) && <SuspensionHistory suspensions={suspensions.filter((s) => !s.active)} now={now} />}
       </Panel>
+
+      {viewer.rank === "admin" && (
+        <Panel title={<><LuCrown aria-hidden className="size-[18px] text-accent" /> Rank</>}>
+          {player.rank === "admin" ? (
+            <p className="m-0 text-sm leading-normal text-ink-2">
+              {player.username} is an Admin. Admins are listed in ADMIN_UUIDS, so this can&apos;t be changed from the site.
+            </p>
+          ) : (
+            <RankForm playerUuid={player.uuid} username={player.username} rank={isStoredRank(player.rank) ? player.rank : null} />
+          )}
+        </Panel>
+      )}
 
       <div className="grid items-start gap-6 lg:grid-cols-2">
         <EntryList
@@ -111,7 +133,7 @@ function ActiveSuspension({ suspension: s }: { suspension: SuspensionRow }) {
   return (
     <div className="flex flex-wrap items-start justify-between gap-4 rounded border-2 border-neg-line bg-neg-bg p-4">
       <div className="flex min-w-0 flex-1 basis-[260px] flex-col gap-1.5 text-sm leading-normal">
-        <strong className="text-[#ffd9d9]">{s.until ? `Suspended until ${shortDateTime(s.until)}` : "Suspended until an Admin lifts it"}</strong>
+        <strong className="text-[#ffd9d9]">{s.until ? `Suspended until ${shortDateTime(s.until)}` : "Suspended until Staff lift it"}</strong>
         <span className="[overflow-wrap:anywhere] text-[#f2c4c4]">{s.reason}</span>
         <span className="flex flex-wrap items-center gap-x-1.5 text-[13px] text-[#f2c4c4]/80">
           <span>{shortDate(s.createdAt)}</span>

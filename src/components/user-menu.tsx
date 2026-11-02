@@ -26,7 +26,7 @@ const HOVER_CLOSE_DELAY = 150;
 // "none" is a hover open: focus stays where it was, e.g. in the search box.
 type FocusTarget = "first" | "last" | "menu" | "none";
 
-export function UserMenu({ uuid, username, isAdmin = false }: { uuid: string; username: string; isAdmin?: boolean }) {
+export function UserMenu({ uuid, username, showAdmin = false }: { uuid: string; username: string; showAdmin?: boolean }) {
   const router = useRouter();
   const [, startTransition] = useTransition();
   const reduceMotion = useReducedMotion();
@@ -51,7 +51,7 @@ export function UserMenu({ uuid, username, isAdmin = false }: { uuid: string; us
   const items: Item[] = [
     { label: "Profile", icon: UserIcon, href: `/player/${encodeURIComponent(username)}` },
     { label: "Settings", icon: Settings01Icon, href: "/settings" },
-    ...(isAdmin ? [{ label: "Admin", icon: DashboardSquare01Icon, href: "/admin" }] : []),
+    ...(showAdmin ? [{ label: "Admin", icon: DashboardSquare01Icon, href: "/admin" }] : []),
     { type: "separator" },
     { label: "Sign out", icon: Logout03Icon },
   ];

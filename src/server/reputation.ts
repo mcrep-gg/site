@@ -2,6 +2,7 @@ import { and, count, desc, eq, gte, inArray, isNull, or, gt, sql } from "drizzle
 import { alias } from "drizzle-orm/pg-core";
 import type { Db } from "@/db/client";
 import { players, reactions, replies, reports, reputation, reputationEvents, suspensions } from "@/db/schema";
+import { rankOf, type Rank } from "@/lib/ranks";
 import {
   REACTION_KEYS,
   dailyLimit,
@@ -149,7 +150,7 @@ export type ReceivedEntry = {
   value: Value;
   reason: string | null;
   createdAt: Date;
-  giver: { uuid: string; username: string };
+  giver: { uuid: string; username: string; rank: Rank | null };
   reply: { text: string; updatedAt: Date } | null;
 };
 
@@ -163,6 +164,7 @@ export async function receivedReputation(db: Db, receiverUuid: string): Promise<
       createdAt: reputation.createdAt,
       giverUuid: players.uuid,
       giverName: players.username,
+      giverRank: players.rank,
       replyText: replies.text,
       replyUpdatedAt: replies.updatedAt,
     })
@@ -176,7 +178,7 @@ export async function receivedReputation(db: Db, receiverUuid: string): Promise<
     value: r.value as Value,
     reason: r.reason,
     createdAt: r.createdAt,
-    giver: { uuid: r.giverUuid, username: r.giverName },
+    giver: { uuid: r.giverUuid, username: r.giverName, rank: rankOf(r.giverUuid, r.giverRank) },
     reply: r.replyText != null && r.replyUpdatedAt ? { text: r.replyText, updatedAt: r.replyUpdatedAt } : null,
   }));
 }
@@ -409,18 +411,19 @@ export async function reactionsFor(db: Db, reputationIds: string[], viewerUuid: 
 /** Players need Reputation from at least this many Players to be listed. */
 export const LEADERBOARD_MIN_GIVERS = 10;
 
-export type LeaderboardRow = { uuid: string; username: string; positive: number; negative: number; net: number };
+export type LeaderboardRow = { uuid: string; username: string; rank: Rank | null; positive: number; negative: number; net: number };
 
 export async function leaderboard(db: Db, order: "highest" | "lowest", limit = 25): Promise<LeaderboardRow[]> {
   const positive = sql<number>`count(*) filter (where ${reputation.value} = 1)`.mapWith(Number);
   const negative = sql<number>`count(*) filter (where ${reputation.value} = -1)`.mapWith(Number);
   const net = sql<number>`sum(${reputation.value})`.mapWith(Number);
-  return db
-    .select({ uuid: players.uuid, username: players.username, positive, negative, net })
+  const rows = await db
+    .select({ uuid: players.uuid, username: players.username, rank: players.rank, positive, negative, net })
     .from(reputation)
     .innerJoin(players, eq(players.uuid, reputation.receiverUuid))
-    .groupBy(players.uuid, players.username)
+    .groupBy(players.uuid)
     .having(sql`count(*) >= ${LEADERBOARD_MIN_GIVERS}`)
     .orderBy(order === "highest" ? sql`sum(${reputation.value}) desc` : sql`sum(${reputation.value}) asc`, players.username)
     .limit(limit);
+  return rows.map((r) => ({ ...r, rank: rankOf(r.uuid, r.rank) }));
 }

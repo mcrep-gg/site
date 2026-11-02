@@ -5,7 +5,7 @@ import { LuFlag } from "react-icons/lu";
 import { db } from "@/db";
 import { listReports } from "@/server/admin";
 import { Empty, PageTitle, ReportCard } from "@/components/admin/ui";
-import { requireAdmin } from "../data";
+import { requireModerator } from "../data";
 
 export const metadata: Metadata = { title: "Reports" };
 
@@ -25,7 +25,7 @@ export default function ReportsPage({ searchParams }: { searchParams: SearchPara
 }
 
 async function Reports({ searchParams }: { searchParams: SearchParams }) {
-  await requireAdmin();
+  await requireModerator();
   const status = (await searchParams).status === "resolved" ? "resolved" : "open";
   const reports = await listReports(db, status);
   const now = new Date();

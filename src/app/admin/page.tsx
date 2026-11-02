@@ -4,7 +4,7 @@ import { LuArrowRight, LuFlag } from "react-icons/lu";
 import { db } from "@/db";
 import { listReports } from "@/server/admin";
 import { Empty, ReportCard } from "@/components/admin/ui";
-import { getOverview, requireAdmin } from "./data";
+import { getOverview, requireModerator } from "./data";
 
 const PREVIEW_REPORTS = 3;
 
@@ -17,7 +17,7 @@ export default function AdminOverviewPage() {
 }
 
 async function Overview() {
-  await requireAdmin();
+  await requireModerator();
   const [stats, open] = await Promise.all([getOverview(), listReports(db, "open", PREVIEW_REPORTS)]);
   const now = new Date();
 

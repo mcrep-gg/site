@@ -80,7 +80,7 @@ export function GivePanel({ ctx, title }: { ctx: GiveContext; title: string }) {
           {ctx.suspension ? (
             <span className="flex items-center gap-1.5 text-[13px] text-neg">
               <LuBan aria-hidden className="size-3.5" />
-              An Admin suspended you from giving Reputation
+              Staff suspended you from giving Reputation
             </span>
           ) : (
             <span className="flex items-center gap-1.5 text-[13px] text-muted">
