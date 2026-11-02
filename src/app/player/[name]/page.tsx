@@ -7,6 +7,7 @@ import { LuCheck, LuCircleAlert, LuLogIn, LuSearchX, LuShieldCheck, LuTriangleAl
 import { db } from "@/db";
 import { formatNet } from "@/lib/rules";
 import { getViewer } from "@/lib/viewer";
+import { nameHistory } from "@/server/laby";
 import { findPlayerByName, type Player } from "@/server/players";
 import { givenReputation, giverStatus, hasReported, reactionsFor, receivedReputation, totalsFor } from "@/server/reputation";
 import { RankBadge } from "@/components/rank-badge";
@@ -14,6 +15,7 @@ import { SkinHead } from "@/components/skin-head";
 import { shortDate, timeAgo, timeUntil } from "@/components/profile/format";
 import { GivePanel } from "@/components/profile/give-panel";
 import { GivenList } from "@/components/profile/given-list";
+import { NameHistory } from "@/components/profile/name-history";
 import { ReceivedList } from "@/components/profile/received-list";
 import type { EntryView, GiveContext, GivenView } from "@/components/profile/types";
 
@@ -146,7 +148,14 @@ async function Profile({ params }: { params: Params }) {
             <SkinHead uuid={player.uuid} username={username} size={88} />
           </div>
           <div className="flex min-w-0 flex-col gap-2.5">
-            <h1 className="m-0 font-pixel text-[28px] leading-[1.05] font-bold [overflow-wrap:anywhere] sm:text-[40px]">{username}</h1>
+            {/* The arrow flows after the name's last letter; its panel opens under the whole block. */}
+            <div className="relative">
+              <h1 className="m-0 inline font-pixel text-[28px] leading-[1.05] font-bold [overflow-wrap:anywhere] sm:text-[40px]">{username}</h1>
+              {/* Laby can be slow: the arrow streams in after the rest of the profile. */}
+              <Suspense fallback={null}>
+                <PastNames uuid={player.uuid} username={username} />
+              </Suspense>
+            </div>
             <div className="flex flex-wrap gap-1.5">
               <RankBadge rank={player.rank} />
               {player.linkedAt ? (
@@ -243,6 +252,17 @@ async function Profile({ params }: { params: Params }) {
       </div>
     </>
   );
+}
+
+async function PastNames({ uuid, username }: { uuid: string; username: string }) {
+  const names = await nameHistory(uuid);
+  // Nothing to show for an account that never changed its name.
+  if (names.length < 2) return null;
+  const views = names.map((n, i) => ({
+    name: n.name,
+    when: i === 0 ? "Current" : n.changedAt ? `${n.accurate ? "" : "~"}${shortDate(n.changedAt)}` : "Original",
+  }));
+  return <NameHistory username={username} names={views} />;
 }
 
 function Badge({ className, children }: { className: string; children: ReactNode }) {
