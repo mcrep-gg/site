@@ -5,7 +5,7 @@ import { db } from "@/db";
 import { REASON_MAX, REPLY_MAX, REPORT_DETAILS_MAX, type GiveError, type ReplyError, type ReportError } from "@/lib/rules";
 import { getViewer } from "@/lib/viewer";
 import { getPlayer } from "@/server/players";
-import { createReport, deleteReply, giveReputation, removeReputation, saveReply } from "@/server/reputation";
+import { createReport, deleteReply, giveReputation, removeReputation, saveReply, toggleReaction, type ReactResult } from "@/server/reputation";
 import type { ActionResult } from "@/components/profile/types";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -36,6 +36,13 @@ const REPORT_ERRORS: Record<ReportError | "not_found" | "already_reported" | "no
   not_found: GONE,
   already_reported: "You already reported this +1 or −1. You can report each one once.",
   not_linked: SIGN_IN,
+};
+
+const REACT_ERRORS: Record<Extract<ReactResult, { ok: false }>["error"], string> = {
+  bad_emoji: "You can't react with that.",
+  not_linked: SIGN_IN,
+  suspended: "An Admin suspended you, so you can't react right now.",
+  not_found: GONE,
 };
 
 const fail = (message: string): ActionResult => ({ status: "error", message });
@@ -125,5 +132,17 @@ export async function reportAction(reputationId: string, _prev: ActionResult, fo
     return fail(REPORT_ERRORS[result.error]);
   }
   refresh();
+  return { status: "ok" };
+}
+
+/** Adds the viewer's emoji reaction to a +1/−1, or takes it back if they already added it. */
+export async function reactAction(reputationId: string, emoji: string): Promise<ActionResult> {
+  const viewer = await getViewer();
+  if (!viewer) return fail(SIGN_IN);
+  if (!UUID_RE.test(reputationId)) return fail(GONE);
+
+  const result = await toggleReaction(db, { playerUuid: viewer.uuid, reputationId, emoji });
+  refresh();
+  if (!result.ok) return fail(REACT_ERRORS[result.error]);
   return { status: "ok" };
 }

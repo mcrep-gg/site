@@ -5,11 +5,15 @@ import { addPlayer, testDb } from "@/test/db";
 import {
   createReport,
   giveReputation,
+  givenReputation,
   giverStatus,
   leaderboard,
+  newestReputation,
+  reactionsFor,
   receivedReputation,
   removeReputation,
   saveReply,
+  toggleReaction,
   totalsFor,
 } from "./reputation";
 
@@ -103,6 +107,102 @@ describe("createReport", () => {
     expect(await createReport(db, report)).toEqual({ ok: true });
     expect(await createReport(db, report)).toEqual({ ok: false, error: "already_reported" });
     expect(await createReport(db, { ...report, category: "other" })).toEqual({ ok: false, error: "details_required" });
+  });
+});
+
+describe("givenReputation", () => {
+  it("lists what a Player gave, newest first, with each receiver's name and Reply", async () => {
+    const alex = await addPlayer(db, { linkedAt: longAgo });
+    const steve = await addPlayer(db, { linkedAt: longAgo });
+    const ava = await addPlayer(db);
+    await giveReputation(db, { giverUuid: alex.uuid, receiverUuid: steve.uuid, value: 1, now: new Date(now.getTime() - 60_000) });
+    await giveReputation(db, { giverUuid: alex.uuid, receiverUuid: ava.uuid, value: -1, reason: "kept my diamonds", now });
+    // Given to Alex, so it belongs on Alex's received list, not here.
+    await giveReputation(db, { giverUuid: steve.uuid, receiverUuid: alex.uuid, value: 1, now });
+    const [toSteve] = await receivedReputation(db, steve.uuid);
+    await saveReply(db, { viewerUuid: steve.uuid, reputationId: toSteve.id, text: "Thanks!" });
+
+    const given = await givenReputation(db, alex.uuid);
+    expect(given.map((e) => [e.receiver.uuid, e.value])).toEqual([
+      [ava.uuid, -1],
+      [steve.uuid, 1],
+    ]);
+    expect(given[0]).toMatchObject({ reason: "kept my diamonds", receiver: { username: ava.username }, reply: null });
+    expect(given[1].reply?.text).toBe("Thanks!");
+  });
+});
+
+describe("newestReputation", () => {
+  it("lists the latest +1/-1s from anyone, newest first, with both Players' names", async () => {
+    const alex = await addPlayer(db, { linkedAt: longAgo });
+    const steve = await addPlayer(db);
+    const ava = await addPlayer(db);
+    await giveReputation(db, { giverUuid: alex.uuid, receiverUuid: steve.uuid, value: 1, now: new Date(now.getTime() - 60_000) });
+    await giveReputation(db, { giverUuid: alex.uuid, receiverUuid: ava.uuid, value: -1, reason: "kept my diamonds", now });
+
+    const feed = await newestReputation(db, 10);
+    expect(feed.map((e) => [e.receiver.uuid, e.value])).toEqual([
+      [ava.uuid, -1],
+      [steve.uuid, 1],
+    ]);
+    expect(feed[0]).toMatchObject({ reason: "kept my diamonds", giver: { uuid: alex.uuid, username: alex.username } });
+    expect(await newestReputation(db, 1)).toHaveLength(1);
+  });
+});
+
+describe("toggleReaction", () => {
+  it("adds a reaction, and takes it back when the same emoji is picked again", async () => {
+    const alex = await addPlayer(db, { linkedAt: longAgo });
+    const steve = await addPlayer(db, { linkedAt: longAgo });
+    const ava = await addPlayer(db);
+    await giveReputation(db, { giverUuid: alex.uuid, receiverUuid: ava.uuid, value: 1, now });
+    const [entry] = await receivedReputation(db, ava.uuid);
+
+    expect(await toggleReaction(db, { playerUuid: steve.uuid, reputationId: entry.id, emoji: "heart", now })).toEqual({ ok: true, added: true });
+    await toggleReaction(db, { playerUuid: alex.uuid, reputationId: entry.id, emoji: "heart", now });
+    await toggleReaction(db, { playerUuid: steve.uuid, reputationId: entry.id, emoji: "laugh", now });
+    expect((await reactionsFor(db, [entry.id], steve.uuid)).get(entry.id)).toEqual([
+      { emoji: "heart", count: 2, mine: true },
+      { emoji: "laugh", count: 1, mine: true },
+    ]);
+
+    expect(await toggleReaction(db, { playerUuid: steve.uuid, reputationId: entry.id, emoji: "heart", now })).toEqual({ ok: true, added: false });
+    expect((await reactionsFor(db, [entry.id], steve.uuid)).get(entry.id)).toEqual([
+      { emoji: "heart", count: 1, mine: false },
+      { emoji: "laugh", count: 1, mine: true },
+    ]);
+  });
+
+  it("only lets Linked Players who are not suspended react, with a known emoji", async () => {
+    const alex = await addPlayer(db, { linkedAt: longAgo });
+    const unlinked = await addPlayer(db);
+    const ava = await addPlayer(db);
+    await giveReputation(db, { giverUuid: alex.uuid, receiverUuid: ava.uuid, value: 1, now });
+    const [entry] = await receivedReputation(db, ava.uuid);
+
+    const react = (playerUuid: string, emoji = "heart") => toggleReaction(db, { playerUuid, reputationId: entry.id, emoji, now });
+    expect(await react(unlinked.uuid)).toEqual({ ok: false, error: "not_linked" });
+    expect(await react(alex.uuid, "poop")).toEqual({ ok: false, error: "bad_emoji" });
+    await db.insert(suspensions).values({ playerUuid: alex.uuid, reason: "spam" });
+    expect(await react(alex.uuid)).toEqual({ ok: false, error: "suspended" });
+    expect(await reactionsFor(db, [entry.id], null)).toEqual(new Map());
+  });
+
+  it("drops reactions when the Reputation they were on is changed", async () => {
+    const alex = await addPlayer(db, { linkedAt: longAgo });
+    const steve = await addPlayer(db, { linkedAt: longAgo });
+    const ava = await addPlayer(db);
+    await giveReputation(db, { giverUuid: alex.uuid, receiverUuid: ava.uuid, value: 1, now });
+    const [entry] = await receivedReputation(db, ava.uuid);
+    await toggleReaction(db, { playerUuid: steve.uuid, reputationId: entry.id, emoji: "thumbs_up", now });
+
+    await giveReputation(db, { giverUuid: alex.uuid, receiverUuid: ava.uuid, value: -1, reason: "changed my mind", now });
+    const [changed] = await receivedReputation(db, ava.uuid);
+    expect(await reactionsFor(db, [entry.id, changed.id], steve.uuid)).toEqual(new Map());
+    expect(await toggleReaction(db, { playerUuid: steve.uuid, reputationId: entry.id, emoji: "heart", now })).toEqual({
+      ok: false,
+      error: "not_found",
+    });
   });
 });
 

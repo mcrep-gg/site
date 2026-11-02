@@ -12,7 +12,7 @@ export const metadata: Metadata = { title: "Sign in" };
 
 export default function SignInPage() {
   return (
-    <main className="mx-auto flex w-full max-w-[1040px] flex-col gap-8 px-4 pt-7 pb-12 sm:px-6 sm:pt-14 sm:pb-20">
+    <main className="stagger mx-auto flex w-full max-w-[1040px] flex-col gap-8 px-4 pt-7 pb-12 sm:px-6 sm:pt-14 sm:pb-20">
       <div className="flex max-w-[680px] flex-col gap-3">
         <h1 className="font-pixel text-[30px] leading-[1.08] font-bold sm:text-[44px]">Sign in with your Minecraft account</h1>
         <p className="text-[17px] leading-relaxed text-ink-2">
@@ -23,7 +23,7 @@ export default function SignInPage() {
         <AlreadySignedIn />
       </Suspense>
       <div className="flex flex-wrap items-start gap-6">
-        <ol className="flex min-w-0 flex-[1_1_420px] list-none flex-col gap-3.5">
+        <ol className="stagger flex min-w-0 [--stagger-base:120ms] flex-[1_1_420px] list-none flex-col gap-3.5">
           <Step n={1} title={`Join the server ${LINK_SERVER_ADDRESS} in Minecraft`}>
             <p className="text-sm leading-normal text-muted">In Java Edition, open Multiplayer, choose Add Server and use this address.</p>
             <div className="flex items-center gap-2.5 rounded border-2 border-line-strong bg-page py-1 pr-1 pl-3">
@@ -36,7 +36,7 @@ export default function SignInPage() {
             <p className="text-sm leading-normal text-muted">Press T to open chat, type the command and press Enter. Your code appears in chat.</p>
             <div className="flex items-center gap-0.5 rounded-[2px] bg-black/55 px-3 py-2.5 font-mono text-base font-medium text-white">
               <span>/link</span>
-              <span aria-hidden className="ml-0.5 h-[18px] w-[9px] bg-ink" />
+              <span aria-hidden className="ml-0.5 h-[18px] w-[9px] animate-blink bg-ink" />
             </div>
           </Step>
           <Step n={3} title="Enter the code you are given">

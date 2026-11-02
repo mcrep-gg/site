@@ -1,11 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useState, type CSSProperties } from "react";
+import { motion } from "motion/react";
 import { LuClock, LuCornerDownRight, LuFlag, LuMessageSquare, LuPencil } from "react-icons/lu";
 import { ValueChip } from "@/components/reputation";
 import { SkinHead } from "@/components/skin-head";
+import { useReducedMotion } from "@/hooks/use-reduced-motion";
 import { ReplyDialog, ReportDialog } from "./entry-dialogs";
+import { ReactionBar } from "./reactions";
 import type { EntryView } from "./types";
 
 type Filter = "all" | "plus" | "minus";
@@ -13,6 +16,8 @@ type Open = { kind: "reply" | "report"; id: string } | null;
 
 /** How many entries show before "Show all Reputation". */
 const FIRST_PAGE = 10;
+
+const PILL = { type: "spring", duration: 0.35, bounce: 0.15 } as const;
 
 const actionLink = "inline-flex h-11 cursor-pointer items-center gap-1.5 rounded border-0 bg-transparent px-2.5 text-[13px] font-semibold";
 
@@ -33,6 +38,7 @@ export function ReceivedList({
   const [showAll, setShowAll] = useState(false);
   const [open, setOpen] = useState<Open>(null);
   const close = () => setOpen(null);
+  const reduceMotion = useReducedMotion();
 
   const positive = entries.filter((e) => e.value === 1).length;
   const negative = entries.length - positive;
@@ -61,12 +67,21 @@ export function ReceivedList({
                 type="button"
                 aria-pressed={on}
                 onClick={() => setFilter(id)}
-                className={`flex h-10 cursor-pointer items-center gap-1.5 rounded border-2 px-3 text-sm font-semibold ${
-                  on ? "border-ink bg-ink text-page" : "border-line-strong bg-surface text-ink-2"
-                }`}
+                className={`relative flex h-10 cursor-pointer items-center gap-1.5 rounded border-2 px-3 text-sm font-semibold ${
+                  on ? "border-transparent" : "border-line-strong"
+                } bg-surface text-ink`}
               >
-                <span className="font-mono">{label}</span>
-                <span>{count}</span>
+                {on && (
+                  <motion.span
+                    layoutId="reputation-filter"
+                    aria-hidden
+                    transition={reduceMotion ? { duration: 0 } : PILL}
+                    className="absolute -inset-0.5 rounded bg-ink"
+                  />
+                )}
+                {/* Difference blending turns the label dark exactly where the pill is under it, even mid-slide. */}
+                <span className="relative font-mono mix-blend-difference">{label}</span>
+                <span className="relative mix-blend-difference">{count}</span>
               </button>
             );
           })}
@@ -74,7 +89,8 @@ export function ReceivedList({
       </div>
 
       <div className="flex flex-col gap-3.5">
-        <div className="overflow-hidden rounded-md border-2 border-line bg-surface">
+        {/* Keyed by filter so a new filter replays the entries rising in. */}
+        <div key={filter} className="stagger overflow-hidden rounded-md border-2 border-line bg-surface [--stagger-base:120ms] [--stagger-step:40ms]">
           {shown.length === 0 && (
             <p className="m-0 px-5 py-6 text-sm text-muted">{filter === "plus" ? "No +1 yet." : "No −1 yet."}</p>
           )}
@@ -85,6 +101,8 @@ export function ReceivedList({
             return (
               <article
                 key={e.id}
+                // Entries revealed by "Show all" count from their own first one, not from the top of the list.
+                style={{ "--stagger-index": Math.min(i % FIRST_PAGE, 9) } as CSSProperties}
                 className={`flex gap-3.5 px-3.5 py-4 sm:px-5 sm:py-[18px] ${i > 0 ? "border-t-2 border-line-soft" : ""} ${
                   e.mine ? "bg-pos-bg/40" : ""
                 }`}
@@ -125,6 +143,7 @@ export function ReceivedList({
                       </div>
                     </div>
                   )}
+                  <ReactionBar reputationId={e.id} reactions={e.reactions} canReact={!!viewerName} />
                   {(canWriteReply || canEditReply || canReport) && (
                     <div className="-mt-1.5 -mb-2.5 -ml-2.5 flex flex-wrap gap-1">
                       {canWriteReply && (

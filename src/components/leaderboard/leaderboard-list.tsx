@@ -50,7 +50,7 @@ export function LeaderboardList({ kind, rows, id }: { kind: ListKind; rows: Lead
       {rows.length === 0 ? (
         <p className="m-0 px-5 py-6 text-sm leading-[1.55] text-muted">{LISTS[kind].empty}</p>
       ) : (
-        <ol className="m-0 list-none p-0">
+        <ol className="stagger m-0 list-none p-0 [--stagger-base:120ms] [--stagger-step:35ms]">
           {rows.map((r, i) => {
             const f = formatNet(r.positive, r.negative);
             const podium = kind === "highest" && i < 3;

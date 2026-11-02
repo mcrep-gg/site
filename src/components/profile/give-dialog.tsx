@@ -198,7 +198,7 @@ function ChoiceButton({
     >
       <span className="flex w-full items-center justify-between">
         <span className={`font-mono text-[26px] leading-tight font-bold ${plus ? "text-pos" : "text-neg"}`}>{sign(value)}</span>
-        {pressed && <LuCircleCheck aria-hidden className={`size-5 ${plus ? "text-pos" : "text-neg"}`} />}
+        {pressed && <LuCircleCheck aria-hidden className={`size-5 animate-pop ${plus ? "text-pos" : "text-neg"}`} />}
       </span>
       <span className="text-[15px] font-bold">{label}</span>
       <span className="text-[13px] leading-[1.4] text-muted">{hint}</span>

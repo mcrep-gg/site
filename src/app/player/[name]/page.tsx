@@ -3,17 +3,18 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { cache, Suspense, type ReactNode } from "react";
-import { LuCheck, LuCircleAlert, LuInfo, LuLogIn, LuSearchX, LuShieldCheck, LuTriangleAlert, LuUserRound } from "react-icons/lu";
+import { LuCheck, LuCircleAlert, LuLogIn, LuSearchX, LuShieldCheck, LuTriangleAlert, LuUserRound } from "react-icons/lu";
 import { db } from "@/db";
 import { formatNet } from "@/lib/rules";
 import { getViewer } from "@/lib/viewer";
 import { findPlayerByName, type Player } from "@/server/players";
-import { giverStatus, hasReported, receivedReputation, totalsFor } from "@/server/reputation";
+import { givenReputation, giverStatus, hasReported, reactionsFor, receivedReputation, totalsFor } from "@/server/reputation";
 import { SkinHead } from "@/components/skin-head";
 import { shortDate, timeAgo, timeUntil } from "@/components/profile/format";
-import { CopyProfileLink, GivePanel } from "@/components/profile/give-panel";
+import { GivePanel } from "@/components/profile/give-panel";
+import { GivenList } from "@/components/profile/given-list";
 import { ReceivedList } from "@/components/profile/received-list";
-import type { EntryView, GiveContext } from "@/components/profile/types";
+import type { EntryView, GiveContext, GivenView } from "@/components/profile/types";
 
 type Params = Promise<{ name: string }>;
 
@@ -34,7 +35,7 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
 
 export default function PlayerPage({ params }: { params: Params }) {
   return (
-    <main className="mx-auto box-border flex w-full max-w-[1120px] flex-col gap-6 px-4 pt-5 pb-12 sm:px-6 sm:pt-8 sm:pb-20">
+    <main className="stagger mx-auto box-border flex w-full max-w-[1120px] flex-col gap-6 px-4 pt-5 pb-12 sm:px-6 sm:pt-8 sm:pb-20">
       <Suspense fallback={<ProfileSkeleton />}>
         <Profile params={params} />
       </Suspense>
@@ -54,11 +55,17 @@ async function Profile({ params }: { params: Params }) {
   if (!player) return <NoPlayer name={name} />;
   if (player.username !== name) redirect(`/player/${encodeURIComponent(player.username)}`);
 
-  const [viewer, totals, received] = await Promise.all([getViewer(), totalsFor(db, player.uuid), receivedReputation(db, player.uuid)]);
+  const [viewer, totals, received, given] = await Promise.all([
+    getViewer(),
+    totalsFor(db, player.uuid),
+    receivedReputation(db, player.uuid),
+    givenReputation(db, player.uuid),
+  ]);
   const isOwn = viewer?.uuid === player.uuid;
-  const [status, reported] = await Promise.all([
+  const [status, reported, reactions] = await Promise.all([
     viewer && !isOwn ? giverStatus(db, viewer, player.uuid) : null,
     viewer ? hasReported(db, viewer.uuid, received.map((e) => e.id)) : new Set<string>(),
+    reactionsFor(db, received.map((e) => e.id), viewer?.uuid ?? null),
   ]);
   const now = new Date();
 
@@ -71,6 +78,16 @@ async function Profile({ params }: { params: Params }) {
     reply: e.reply ? { text: e.reply.text, when: timeAgo(e.reply.updatedAt, now) } : null,
     mine: !!viewer && e.giver.uuid === viewer.uuid,
     reported: reported.has(e.id),
+    reactions: reactions.get(e.id) ?? [],
+  }));
+
+  const givenEntries: GivenView[] = given.map((e) => ({
+    id: e.id,
+    value: e.value,
+    reason: e.reason,
+    when: timeAgo(e.createdAt, now),
+    receiver: e.receiver,
+    reply: e.reply ? { text: e.reply.text, when: timeAgo(e.reply.updatedAt, now) } : null,
   }));
 
   const { positive: pos, negative: neg } = totals;
@@ -130,7 +147,6 @@ async function Profile({ params }: { params: Params }) {
           <div className="flex min-w-0 flex-col gap-2.5">
             <h1 className="m-0 font-pixel text-[28px] leading-[1.05] font-bold [overflow-wrap:anywhere] sm:text-[40px]">{username}</h1>
             <div className="flex flex-wrap gap-1.5">
-              {isOwn && <Badge className="bg-accent-bg font-bold text-accent">This is you</Badge>}
               {player.linkedAt ? (
                 <Badge className="gap-[5px] border border-line-strong bg-surface-3 font-semibold text-ink-2">
                   <LuCheck aria-hidden className="size-[13px]" />
@@ -152,13 +168,12 @@ async function Profile({ params }: { params: Params }) {
                 </Badge>
               )}
             </div>
-            <span className="text-[13px] text-muted">
-              Java Edition · Reputation from {total} {total === 1 ? "Player" : "Players"}
-            </span>
           </div>
         </div>
 
-        <div className="flex flex-[1_1_220px] flex-col justify-center gap-2.5">
+        <div
+          className={`flex flex-col justify-center gap-2.5 ${isOwn ? "flex-[0_1_260px] sm:ml-auto sm:items-end sm:text-right" : "flex-[1_1_220px]"}`}
+        >
           <span className="text-xs font-bold tracking-[0.08em] text-muted uppercase">Net Reputation</span>
           <div className="flex flex-wrap items-baseline gap-2.5">
             <span
@@ -171,41 +186,35 @@ async function Profile({ params }: { params: Params }) {
             <span className="font-mono text-lg font-medium text-ink-2">{net.counts}</span>
           </div>
           {total > 0 && (
-            <div aria-hidden className="flex h-2.5 bg-page">
-              <div className="bg-pos" style={{ width: `${posPct}%` }} />
-              <div className="bg-neg" style={{ width: `${100 - posPct}%` }} />
+            <div aria-hidden className="flex h-2.5 self-stretch bg-page">
+              <div className="origin-left animate-grow-x bg-pos" style={{ width: `${posPct}%` }} />
+              <div className="origin-right animate-grow-x bg-neg" style={{ width: `${100 - posPct}%` }} />
             </div>
           )}
           <span className="text-[13px] text-muted">{total ? `${pos} positive, ${neg} negative` : "No Reputation yet"}</span>
         </div>
 
-        <div className="flex flex-[1_1_280px] flex-col justify-center rounded border-2 border-line-strong bg-surface-3 p-[18px]">
-          {isOwn ? (
-            <div className="flex flex-col gap-2.5">
-              <h2 className="m-0 text-base font-bold">Your profile</h2>
-              <p className="m-0 text-sm leading-normal text-ink-2">
-                You can&apos;t give yourself Reputation. Write a Reply on any +1 or −1 you received to share your side.
-              </p>
-              <CopyProfileLink username={username} />
-            </div>
-          ) : giveCtx ? (
-            <GivePanel ctx={giveCtx} title={total === 0 ? `Be the first to give ${username} Reputation` : `Give ${username} Reputation`} />
-          ) : (
-            <div className="flex flex-col gap-3">
-              <h2 className="m-0 text-base font-bold [overflow-wrap:anywhere]">Give {username} Reputation</h2>
-              <p className="m-0 text-sm leading-normal text-ink-2">
-                Sign in with your Minecraft account first. No password: you get a one-time code in-game.
-              </p>
-              <Link
-                href="/sign-in"
-                className="shadow-block flex h-12 items-center justify-center gap-2 rounded bg-accent text-[15px] font-bold text-accent-ink no-underline hover:bg-accent-hover hover:text-accent-ink"
-              >
-                <LuLogIn aria-hidden className="size-4" />
-                Sign in to give Reputation
-              </Link>
-            </div>
-          )}
-        </div>
+        {!isOwn && (
+          <div className="flex flex-[1_1_280px] flex-col justify-center rounded border-2 border-line-strong bg-surface-3 p-[18px]">
+            {giveCtx ? (
+              <GivePanel ctx={giveCtx} title={total === 0 ? `Be the first to give ${username} Reputation` : `Give ${username} Reputation`} />
+            ) : (
+              <div className="flex flex-col gap-3">
+                <h2 className="m-0 text-base font-bold [overflow-wrap:anywhere]">Give {username} Reputation</h2>
+                <p className="m-0 text-sm leading-normal text-ink-2">
+                  Sign in with your Minecraft account first. No password: you get a one-time code in-game.
+                </p>
+                <Link
+                  href="/sign-in"
+                  className="press shadow-block flex h-12 items-center justify-center gap-2 rounded bg-accent text-[15px] font-bold text-accent-ink no-underline hover:bg-accent-hover hover:text-accent-ink"
+                >
+                  <LuLogIn aria-hidden className="size-4" />
+                  Sign in to give Reputation
+                </Link>
+              </div>
+            )}
+          </div>
+        )}
       </section>
 
       <div className="flex flex-wrap items-start gap-6">
@@ -222,34 +231,13 @@ async function Profile({ params }: { params: Params }) {
                   <LuUserRound aria-hidden className="size-[26px]" />
                 </div>
                 <h3 className="m-0 font-pixel text-[22px] font-bold">No Reputation yet</h3>
-                <p className="m-0 max-w-[460px] leading-[1.55] text-ink-2">
-                  {isOwn ? "You haven't" : `${username} hasn't`} received any Reputation. That&apos;s normal: most Players only show up
-                  here after someone gives them a +1 or −1.
-                </p>
-                <p className="m-0 max-w-[460px] text-sm leading-[1.55] text-muted">
-                  {isOwn
-                    ? "Having no Reputation is not a bad sign, and not a good one either. Share your profile link with Players you trade with."
-                    : `Having no Reputation is not a bad sign, and not a good one either. If you trade with ${username}, come back and be the first to give Reputation.`}
-                </p>
               </div>
             </>
           )}
         </section>
-
-        <aside className="flex flex-[1_1_280px] flex-col gap-4">
-          <div className="flex flex-col gap-3.5 rounded-md border-2 border-line bg-surface p-5">
-            <h2 className="m-0 flex items-center gap-2 text-base font-bold">
-              <LuInfo aria-hidden className="size-[18px] text-accent" />
-              Reading a profile
-            </h2>
-            <ul className="m-0 flex list-none flex-col gap-3 p-0 text-sm leading-normal text-ink-2">
-              <Tip>Read the reasons, not just the number. One angry −1 matters less than a pattern.</Tip>
-              <Tip>Each Player can give another Player only one +1 or −1. A new one replaces the old one.</Tip>
-              <Tip>A Reply is the receiving Player&apos;s side of the story.</Tip>
-              <Tip>Reputation is what Players say, not a guarantee. Use a middleman for big trades.</Tip>
-            </ul>
-          </div>
-        </aside>
+        <section aria-labelledby="given-title" className="flex min-w-0 flex-[999_1_560px] flex-col gap-3.5">
+          <GivenList entries={givenEntries} giverName={username} isOwn={isOwn} />
+        </section>
       </div>
     </>
   );
@@ -257,15 +245,6 @@ async function Profile({ params }: { params: Params }) {
 
 function Badge({ className, children }: { className: string; children: ReactNode }) {
   return <span className={`inline-flex h-[26px] items-center rounded-[3px] px-2 text-xs ${className}`}>{children}</span>;
-}
-
-function Tip({ children }: { children: ReactNode }) {
-  return (
-    <li className="flex gap-2.5">
-      <span aria-hidden className="mt-2 size-1.5 shrink-0 bg-accent" />
-      <span>{children}</span>
-    </li>
-  );
 }
 
 function NoPlayer({ name }: { name: string }) {
@@ -313,7 +292,7 @@ function LookupFailed({ name }: { name: string }) {
 /** Same shape as the profile, so nothing jumps when it streams in. */
 function ProfileSkeleton() {
   return (
-    <div aria-busy="true" aria-label="Loading profile" className="flex flex-col gap-6">
+    <div aria-busy="true" aria-label="Loading profile" className="flex animate-pulse flex-col gap-6">
       <div className="flex flex-wrap items-center gap-6 rounded-md border-2 border-line bg-surface p-[18px] sm:p-6">
         <div className="flex flex-[1_1_300px] items-center gap-5">
           <div className="size-16 shrink-0 rounded-[3px] bg-surface-3 sm:size-[88px]" />

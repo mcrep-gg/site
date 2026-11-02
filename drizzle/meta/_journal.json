@@ -15,6 +15,13 @@
       "when": 1793580909680,
       "tag": "0001_admin",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1793581297421,
+      "tag": "0002_reactions",
+      "breakpoints": true
     }
   ]
 }

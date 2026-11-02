@@ -3,6 +3,7 @@ import {
   check,
   index,
   pgTable,
+  primaryKey,
   serial,
   smallint,
   text,
@@ -10,6 +11,8 @@ import {
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
+// Relative, not "@/": drizzle-kit loads this file without the tsconfig paths.
+import { REACTION_KEYS, type Reaction } from "../lib/rules";
 
 const ts = (name: string) => timestamp(name, { withTimezone: true, mode: "date" });
 
@@ -105,6 +108,28 @@ export const replies = pgTable("replies", {
   createdAt: ts("created_at").notNull().defaultNow(),
   updatedAt: ts("updated_at").notNull().defaultNow(),
 });
+
+/**
+ * Emoji reactions on a +1 or -1. Each Player can add each emoji once per entry.
+ * They go with the Reputation when it is changed or removed, like a Reply.
+ */
+export const reactions = pgTable(
+  "reactions",
+  {
+    reputationId: uuid("reputation_id")
+      .notNull()
+      .references(() => reputation.id, { onDelete: "cascade" }),
+    playerUuid: uuid("player_uuid")
+      .notNull()
+      .references(() => players.uuid, { onDelete: "cascade" }),
+    emoji: text("emoji").$type<Reaction>().notNull(),
+    createdAt: ts("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.reputationId, t.playerUuid, t.emoji] }),
+    check("reactions_emoji_check", sql.raw(`emoji in (${REACTION_KEYS.map((k) => `'${k}'`).join(", ")})`)),
+  ],
+);
 
 /** A request for an Admin to review a +1 or -1. Keeps a copy so it survives the Reputation changing. */
 export const reports = pgTable(

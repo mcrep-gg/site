@@ -1,9 +1,12 @@
 import { and, count, desc, eq, gte, inArray, isNull, or, gt, sql } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import type { Db } from "@/db/client";
-import { players, replies, reports, reputation, reputationEvents, suspensions } from "@/db/schema";
+import { players, reactions, replies, reports, reputation, reputationEvents, suspensions } from "@/db/schema";
 import {
+  REACTION_KEYS,
   dailyLimit,
   decideGive,
+  isReaction,
   newPlayerDaysLeft,
   nextUtcReset,
   normalizeText,
@@ -11,6 +14,7 @@ import {
   validateReply,
   validateReport,
   type GiveDecision,
+  type Reaction,
   type ReplyError,
   type ReportError,
   type Value,
@@ -177,15 +181,104 @@ export async function receivedReputation(db: Db, receiverUuid: string): Promise<
   }));
 }
 
-export type GiverStatus = {
-  /** The viewer's current +1/-1 on the target, if any. */
-  existing: { value: Value; reason: string | null; createdAt: Date } | null;
+export type GivenEntry = {
+  id: string;
+  value: Value;
+  reason: string | null;
+  createdAt: Date;
+  receiver: { uuid: string; username: string };
+  reply: { text: string; updatedAt: Date } | null;
+};
+
+/** Every +1/-1 a Player has given, newest first, with the receiver's Reply. */
+export async function givenReputation(db: Db, giverUuid: string): Promise<GivenEntry[]> {
+  const rows = await db
+    .select({
+      id: reputation.id,
+      value: reputation.value,
+      reason: reputation.reason,
+      createdAt: reputation.createdAt,
+      receiverUuid: players.uuid,
+      receiverName: players.username,
+      replyText: replies.text,
+      replyUpdatedAt: replies.updatedAt,
+    })
+    .from(reputation)
+    .innerJoin(players, eq(players.uuid, reputation.receiverUuid))
+    .leftJoin(replies, eq(replies.reputationId, reputation.id))
+    .where(eq(reputation.giverUuid, giverUuid))
+    .orderBy(desc(reputation.createdAt));
+  return rows.map((r) => ({
+    id: r.id,
+    value: r.value as Value,
+    reason: r.reason,
+    createdAt: r.createdAt,
+    receiver: { uuid: r.receiverUuid, username: r.receiverName },
+    reply: r.replyText != null && r.replyUpdatedAt ? { text: r.replyText, updatedAt: r.replyUpdatedAt } : null,
+  }));
+}
+
+export type NewestEntry = {
+  id: string;
+  value: Value;
+  reason: string | null;
+  createdAt: Date;
+  giver: { uuid: string; username: string };
+  receiver: { uuid: string; username: string };
+};
+
+/** The most recent +1/-1s given by anyone, newest first. For the live feed on Home. */
+export async function newestReputation(db: Db, limit: number): Promise<NewestEntry[]> {
+  const receivers = alias(players, "receivers");
+  const rows = await db
+    .select({
+      id: reputation.id,
+      value: reputation.value,
+      reason: reputation.reason,
+      createdAt: reputation.createdAt,
+      giverUuid: players.uuid,
+      giverName: players.username,
+      receiverUuid: receivers.uuid,
+      receiverName: receivers.username,
+    })
+    .from(reputation)
+    .innerJoin(players, eq(players.uuid, reputation.giverUuid))
+    .innerJoin(receivers, eq(receivers.uuid, reputation.receiverUuid))
+    .orderBy(desc(reputation.createdAt), desc(reputation.id))
+    .limit(limit);
+  return rows.map((r) => ({
+    id: r.id,
+    value: r.value as Value,
+    reason: r.reason,
+    createdAt: r.createdAt,
+    giver: { uuid: r.giverUuid, username: r.giverName },
+    receiver: { uuid: r.receiverUuid, username: r.receiverName },
+  }));
+}
+
+export type GivingAllowance = {
   usedToday: number;
   limit: number;
   /** Days until the new-Player limit lifts; 0 when the full limit applies. */
   newPlayerDaysLeft: number;
   resetsAt: Date;
   suspension: ActiveSuspension | null;
+};
+
+/** How much more Reputation a Linked Player can give today, and whether they are suspended. */
+export async function givingAllowance(db: Db, viewer: { uuid: string; linkedAt: Date }, now = new Date()): Promise<GivingAllowance> {
+  return {
+    usedToday: await usedToday(db, viewer.uuid, now),
+    limit: dailyLimit(viewer.linkedAt, now),
+    newPlayerDaysLeft: newPlayerDaysLeft(viewer.linkedAt, now),
+    resetsAt: nextUtcReset(now),
+    suspension: await activeSuspension(db, viewer.uuid, now),
+  };
+}
+
+export type GiverStatus = GivingAllowance & {
+  /** The viewer's current +1/-1 on the target, if any. */
+  existing: { value: Value; reason: string | null; createdAt: Date } | null;
 };
 
 /** What a Linked Player viewing someone's profile needs to know before giving Reputation. */
@@ -196,11 +289,7 @@ export async function giverStatus(db: Db, viewer: { uuid: string; linkedAt: Date
     .where(and(eq(reputation.giverUuid, viewer.uuid), eq(reputation.receiverUuid, targetUuid)));
   return {
     existing: existing ? { ...existing, value: existing.value as Value } : null,
-    usedToday: await usedToday(db, viewer.uuid, now),
-    limit: dailyLimit(viewer.linkedAt, now),
-    newPlayerDaysLeft: newPlayerDaysLeft(viewer.linkedAt, now),
-    resetsAt: nextUtcReset(now),
-    suspension: await activeSuspension(db, viewer.uuid, now),
+    ...(await givingAllowance(db, viewer, now)),
   };
 }
 
@@ -265,6 +354,56 @@ export async function hasReported(db: Db, reporterUuid: string, reputationIds: s
     .from(reports)
     .where(and(eq(reports.reporterUuid, reporterUuid), inArray(reports.reputationId, reputationIds)));
   return new Set(rows.map((r) => r.id).filter((id): id is string => !!id));
+}
+
+export type ReactResult = { ok: true; added: boolean } | { ok: false; error: "bad_emoji" | "not_linked" | "suspended" | "not_found" };
+
+/** Adds the Player's emoji reaction to a +1/-1, or takes it back if they already reacted with that emoji. */
+export async function toggleReaction(
+  db: Db,
+  input: { playerUuid: string; reputationId: string; emoji: string; now?: Date },
+): Promise<ReactResult> {
+  if (!isReaction(input.emoji)) return { ok: false, error: "bad_emoji" };
+  const emoji = input.emoji;
+  const now = input.now ?? new Date();
+  return db.transaction(async (tx) => {
+    const [player] = await tx.select({ linkedAt: players.linkedAt }).from(players).where(eq(players.uuid, input.playerUuid));
+    if (!player?.linkedAt) return { ok: false, error: "not_linked" } as const;
+    if (await activeSuspension(tx, input.playerUuid, now)) return { ok: false, error: "suspended" } as const;
+    const [rep] = await tx.select({ id: reputation.id }).from(reputation).where(eq(reputation.id, input.reputationId));
+    if (!rep) return { ok: false, error: "not_found" } as const;
+
+    const mine = and(eq(reactions.reputationId, rep.id), eq(reactions.playerUuid, input.playerUuid), eq(reactions.emoji, emoji));
+    const removed = await tx.delete(reactions).where(mine).returning({ emoji: reactions.emoji });
+    if (removed.length) return { ok: true, added: false } as const;
+    await tx.insert(reactions).values({ reputationId: rep.id, playerUuid: input.playerUuid, emoji, createdAt: now }).onConflictDoNothing();
+    return { ok: true, added: true } as const;
+  });
+}
+
+export type ReactionCount = { emoji: Reaction; count: number; mine: boolean };
+
+/** Reaction counts for each +1/-1, in picker order. `mine` says whether the viewer added that one. */
+export async function reactionsFor(db: Db, reputationIds: string[], viewerUuid: string | null): Promise<Map<string, ReactionCount[]>> {
+  const byEntry = new Map<string, ReactionCount[]>();
+  if (!reputationIds.length) return byEntry;
+  const rows = await db
+    .select({
+      reputationId: reactions.reputationId,
+      emoji: reactions.emoji,
+      count: count(),
+      mine: viewerUuid ? sql<boolean>`bool_or(${reactions.playerUuid} = ${viewerUuid})` : sql<boolean>`false`,
+    })
+    .from(reactions)
+    .where(inArray(reactions.reputationId, reputationIds))
+    .groupBy(reactions.reputationId, reactions.emoji);
+  rows.sort((a, b) => REACTION_KEYS.indexOf(a.emoji) - REACTION_KEYS.indexOf(b.emoji));
+  for (const r of rows) {
+    const list = byEntry.get(r.reputationId) ?? [];
+    list.push({ emoji: r.emoji, count: r.count, mine: !!r.mine });
+    byEntry.set(r.reputationId, list);
+  }
+  return byEntry;
 }
 
 /** Players need Reputation from at least this many Players to be listed. */

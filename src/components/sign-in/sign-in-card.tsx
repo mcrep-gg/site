@@ -44,8 +44,8 @@ export function SignInCard() {
   if (state.status === "success") {
     return (
       <Card success>
-        <div role="status" className="flex flex-col items-center gap-3.5 text-center">
-          <div className="flex size-14 items-center justify-center rounded border-2 border-pos-line bg-pos-bg text-pos">
+        <div role="status" className="stagger flex flex-col items-center gap-3.5 text-center [--stagger-step:50ms]">
+          <div className="flex size-14 animate-pop items-center justify-center rounded border-2 border-pos-line bg-pos-bg text-pos">
             <LuCheck aria-hidden className="size-7" strokeWidth={2.5} />
           </div>
           <h2 className="font-pixel text-[26px] font-bold">You&apos;re signed in</h2>
@@ -57,13 +57,13 @@ export function SignInCard() {
           <div className="mt-1 flex w-full flex-col gap-2.5">
             <Link
               href={`/player/${state.username}`}
-              className="shadow-block flex h-[52px] items-center justify-center rounded bg-accent text-base font-bold text-accent-ink no-underline hover:bg-accent-hover hover:text-accent-ink"
+              className="press shadow-block flex h-[52px] items-center justify-center rounded bg-accent text-base font-bold text-accent-ink no-underline hover:bg-accent-hover hover:text-accent-ink"
             >
               Go to my profile
             </Link>
             <Link
               href="/"
-              className="flex h-12 items-center justify-center rounded border-2 border-line-strong text-[15px] font-semibold text-ink no-underline hover:text-ink"
+              className="press flex h-12 items-center justify-center rounded border-2 border-line-strong text-[15px] font-semibold text-ink no-underline hover:text-ink"
             >
               Look up a Player
             </Link>
@@ -110,7 +110,7 @@ export function SignInCard() {
         </div>
         <div id="code-msg">
           {error && (
-            <div role="alert" className="flex gap-2.5 rounded border-2 border-neg-line bg-neg-bg px-3.5 py-3">
+            <div role="alert" className="flex animate-enter gap-2.5 rounded border-2 border-neg-line bg-neg-bg px-3.5 py-3">
               <error.icon aria-hidden className="mt-px size-[18px] shrink-0 text-neg" />
               <div className="flex flex-col gap-1">
                 <strong className="text-sm text-[#ffd9d9]">{error.title}</strong>

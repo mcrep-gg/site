@@ -1,4 +1,4 @@
-/** The rules for giving Reputation, Replies and Reports. Pure: no database, no clock. */
+/** The rules for giving Reputation, Replies, Reports and Reactions. Pure: no database, no clock. */
 
 export const REASON_MAX = 280;
 export const REPLY_MAX = 280;
@@ -105,6 +105,23 @@ export type ReportCategory = keyof typeof REPORT_CATEGORIES;
 
 export function isReportCategory(value: string): value is ReportCategory {
   return Object.hasOwn(REPORT_CATEGORIES, value);
+}
+
+/** The emoji a Player can react with, in picker order. Stored by key, shown as the emoji. */
+export const REACTIONS = {
+  heart: { emoji: "❤️", label: "Love" },
+  thumbs_up: { emoji: "👍", label: "Thumbs up" },
+  thumbs_down: { emoji: "👎", label: "Thumbs down" },
+  laugh: { emoji: "😂", label: "Laugh" },
+  wow: { emoji: "😮", label: "Wow" },
+} as const;
+
+export type Reaction = keyof typeof REACTIONS;
+
+export const REACTION_KEYS = Object.keys(REACTIONS) as Reaction[];
+
+export function isReaction(value: string): value is Reaction {
+  return Object.hasOwn(REACTIONS, value);
 }
 
 export type ReportError = "bad_category" | "details_required" | "details_too_long";
